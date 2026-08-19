@@ -50,17 +50,23 @@ Assets/_Project/
   Scripts/
     CaveBox/       Region map, panel placement, wand pointer/buttons, focus navigation,
                    MiddleVR display-camera access, the front-wall portal
+    Football/      The sim: field math, route baking, ball solver, game state, drive
+                   transport, stats, and the scripted drive content
     Operators/     IOperatorInput, registry, wand + gamepad backends, edge sampling
     Telemetry/     InteractionLog
     Vr/            MiddleVRWand — the wand read every input path sits on
     Editor/        StadiumTestRunner, StadiumRoomBuilder, FrontWallGroupBuilder,
                    GamepadProbeBuilder
-  Tests/EditMode/  106 assertions across 12 files
+  Tests/EditMode/  271 assertions across 21 files
 ```
 
-Assemblies: `Stadium3D.Runtime`, `Stadium3D.Editor`, `Stadium3D.Tests`.
-Namespaces: `Stadium3D.CaveBox`, `Stadium3D.Operators`, `Stadium3D.Telemetry`, `Stadium3D.Vr`,
-`Stadium3D.EditorTools`.
+Assemblies: `Stadium3D.Runtime`, `Stadium3D.Football`, `Stadium3D.Editor`, `Stadium3D.Tests`.
+Namespaces: `Stadium3D.CaveBox`, `Stadium3D.Football`, `Stadium3D.Operators`, `Stadium3D.Telemetry`,
+`Stadium3D.Vr`, `Stadium3D.EditorTools`.
+
+`Stadium3D.Football` references **no** MiddleVR, XR or Input System assembly. That is deliberate: it
+makes "the sim runs off the Unity run loop" a structural property rather than a convention, so it
+cannot accidentally grow a dependency on the render or input path.
 
 ## Layers
 
@@ -79,6 +85,16 @@ Namespaces: `Stadium3D.CaveBox`, `Stadium3D.Operators`, `Stadium3D.Telemetry`, `
 ## Open items from the fork
 
 These are known and deliberate, not oversights:
+
+0. **MiddleVR does not compile on this Unity version without a patch, and the patch is not in the
+   repo.** `Library/PackageCache/com.middlevr@…/Runtime/MiddleVR.Unity.Scripts/Internal/MVRManagerScript.cs`
+   guards on `UNITY_2019_4 … UNITY_2022_1` and `#error`s on anything else — including 2022.3.9f1.
+   The three guard lines are commented out locally so the project builds. **`Library/` is gitignored
+   and Unity regenerates it from the `.tgz`, so this patch is lost on any clean clone or package
+   reimport.** The source Sit-Rep CAVE project has the identical hand-edit and the identical exposure.
+   `UNITY_2022_1` appears nowhere else in the package, so the guard is a pure version gate with no
+   code behind it. Fix properly by getting a MiddleVR build that supports 2022.3, or by adding an
+   Editor script that re-applies the patch on import.
 
 1. **`Boot/BootMiddleVR2.unity` carries two dangling references** — `Target_Sphere.cs` and
    `Gun_MiddleVR.prefab`, both dropped with the shooting-gallery code. They appear as missing

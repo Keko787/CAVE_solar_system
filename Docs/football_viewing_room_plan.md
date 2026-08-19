@@ -404,7 +404,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | # | Milestone | Verifiable when |
 | --- | --- | --- |
 | **M0** ✅ | Repo split — fresh directory by file copy, 3 compile fixes, `.vrx` paths repointed, assemblies renamed | **Done** — `Stadium-3D-Football`, commit `33417a3`, 297 files, 106 assertions. First Unity open still to be run |
-| **M1** | Sim core, pure C# — field math, bake pipeline, game state, drive assets, `timeScale` and beats as first-class | Tests prove the authored drive yields the exact down/distance/score sequence and the expected box score |
+| **M1** ✅ | Sim core, pure C# — field math, bake pipeline, game state, drive content, `timeScale` first-class | **Done** — 271/271 EditMode assertions green in 2022.3.9f1, including the drive acceptance suite |
 | **M2** | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, **main-light shadows off**, stress-test the frame budget | The play runs correctly in an **MVR-free** scene (see below) |
 | **M3** | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | Four distinct undistorted views in the MiddleVR Preview Window |
 | **M3.5** | **One life-size player, real geometry, correct stereo, standing in the room** | Go / no-go on the whole concept — before stats, before overlays |
@@ -445,6 +445,7 @@ One thing already handled: `ProjectSettings.asset` has `runInBackground: 1`.
 | **`.vrx` lives outside the repo** | Three live paths into two foreign project trees. M0 must repoint them all |
 | **MiddleVR pinned by absolute path** | `Packages/manifest.json` binds the repo to one machine. Document it |
 | **Stop-start pacing** | Football reads to a newcomer as standing around punctuated by chaos. The slow-motion hero beat is the mitigation |
+| **MiddleVR does not compile on 2022.3 unpatched** | `MVRManagerScript.cs` `#error`s on any Unity outside 2019.4–2022.1. The guard is commented out in `Library/PackageCache`, which is gitignored and regenerated — so the fix is lost on a clean clone. **The source Sit-Rep CAVE repo has the same hand-edit and the same exposure.** Needs a supported MiddleVR build or a self-healing Editor script |
 | **M2 depends on an MVR-free scene** | Now explicit, was implicit |
 
 ---
@@ -488,7 +489,54 @@ after the hardware check below.
 ### Next
 
 1. **Open the project in Unity once.** Expect two missing objects in `BootMiddleVR2.unity`
-   (`Target_Sphere`, `Gun_MiddleVR`) — delete them. Confirm the 106 EditMode assertions pass.
+   (`Target_Sphere`, `Gun_MiddleVR`) — delete them.
 2. **Run the side-screen test card on the CAVE** (§3.1). It gates M3, and nothing at the desk
    substitutes for it.
-3. **M1** — the sim core. Pure C#, no rendering, `timeScale` and beats first-class.
+3. **M2** — the pitch. Field builder, 22 stylized markers driven by the sim, the layer set designed
+   from M3's constraints, main-light shadows off, and the frame-budget stress test.
+
+### M1 as built
+
+The sim is 18 files in its own `Stadium3D.Football` assembly with **no MiddleVR, XR or Input System
+reference**, which makes "runs off the Unity run loop" structural rather than conventional.
+
+| | |
+| --- | --- |
+| Tests | **271 / 271** passing, run headless in Unity 2022.3.9f1 |
+| | 106 inherited CAVE assertions (unchanged by the M0 namespace sweep) |
+| | 150 new component assertions across 8 fixtures |
+| | 15 drive acceptance assertions |
+| Content | 6 plays, 22 players, ~9k baked samples per play |
+
+**The one idea it rests on:** bake the dynamics once, evaluate purely thereafter. Routes solve into
+fixed-rate `MotionTrack`s at load; the ball is derived from its surrounding pair of `BallEvent`s as a
+closed-form arc; the situation is a single fold `DriveLedger` performs at bind time. Per frame there
+is no integration anywhere — so nothing accumulates, nothing drifts, and seeking backwards is exact.
+Replay, looping and slow motion then cost nothing rather than each needing their own machinery, and
+three tests pin exactly that: a seek must not depend on how the sim got there, a replay must
+reproduce frame-for-frame, and lap two of the loop must equal lap one.
+
+All four defects the design identified in the old `SimulatedFeedSource.Advance()` are now
+structurally impossible, including the one that mattered most — a body standing *on* its first
+waypoint used to silently lose it, which is the pre-snap case for all 22 players.
+
+**A bug the acceptance suite caught that the component tests could not.** Play 4 baked to 19.8 s
+against an authored 5.4. The slip screen has linemen turning back through a near-180° reversal; the
+spline reports an almost-zero corner radius there, `sqrt(grip / curvature)` collapses toward zero,
+and the time integration — floored at only 0.05 m/s — spent a full second on each 5 cm arc step.
+Fixed by clamping the corner radius the curvature caps can see to 0.5 m, flooring the
+curvature-derived speed cap at 18% of top speed (applied *before* the authored constraints, so
+`Dwell` and `Stop` still genuinely stop), and raising the integration floor to 0.35 m/s. A
+`BakeReport` warning now compares a route's duration against what its path length can justify, so the
+next instance surfaces at authoring time. Every component test was green throughout — only running
+the shipped content through the baker exposed it.
+
+**Two decisions worth knowing about.** `BakedPlay.Duration` is derived, never authored, which kills
+the "designer typed 3 s for a 40-yard route" bug class but means a play cannot be pinned to an exact
+length. And `GameStateProjector` is deliberately not a rules engine — it handles the ordinary cases
+and yields to an authored override, which is right for a scripted drive verified against an expected
+box score and a liability the moment anyone wants free play.
+
+Note that field position gained (65 yd) and box-score total yards (75 yd) legitimately differ,
+because a penalty moves the ball without being charged as offensive yardage. Both are pinned, and a
+test asserts they *do not* match so the gap does not get "fixed" later.
