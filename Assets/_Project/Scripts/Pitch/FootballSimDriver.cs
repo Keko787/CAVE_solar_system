@@ -32,6 +32,13 @@ namespace Stadium3D.Pitch
             "solve collapsed is invisible until someone notices a play running long.")]
         bool m_LogBakeReport = true;
 
+        [SerializeField, Tooltip("Metres a jersey number rises per metre its player stands behind the group. " +
+            "Separates the labels of two players standing in line. Zero draws them all at one height.")]
+        float m_NumberDepthLift = JerseyNumbers.DefaultDepthLift;
+
+        [SerializeField, Min(0f), Tooltip("Most a number may be moved from its resting height, metres.")]
+        float m_NumberLiftLimit = JerseyNumbers.DefaultLiftLimit;
+
         static FootballSimDriver s_Instance;
 
         // Enter-play-mode-without-domain-reload would otherwise carry the previous session's instance into
@@ -42,6 +49,7 @@ namespace Stadium3D.Pitch
 
         FootballSim m_Sim;
         readonly Dictionary<int, IPlayerMarkerView> m_Views = new Dictionary<int, IPlayerMarkerView>();
+        readonly List<PlayerMarker> m_Markers = new List<PlayerMarker>();
         BallMarker m_Ball;
 
         /// <summary>The running sim, or null before <see cref="Awake"/>.</summary>
@@ -86,25 +94,13 @@ namespace Stadium3D.Pitch
         }
 
         /// <summary>
-        /// Turn every jersey number toward whichever camera is about to draw. Each of the four wall views
-        /// sees the same bodies from a different direction, so a number oriented once per frame is wrong for
-        /// three of them — a player running away shows their number mirrored, which reads as a rendering
-        /// fault rather than as a back.
+        /// Turn every jersey number toward whichever camera is about to draw, and separate the ones that
+        /// would otherwise stack. Each wall sees the same bodies from a different direction, so a number
+        /// oriented once per frame is wrong for the other — a player running away shows their number
+        /// mirrored, which reads as a rendering fault rather than as a back.
         /// </summary>
-        void OrientNumbersFor(Camera camera)
-        {
-            if (m_Views.Count == 0) return;
-
-            // Only the pitch cameras care. Anything that cannot see the marker layer would pay for nothing.
-            int markerLayer = LayerMask.NameToLayer(PitchLayers.Players);
-            if (markerLayer >= 0 && (camera.cullingMask & (1 << markerLayer)) == 0) return;
-
-            foreach (var kv in m_Views)
-            {
-                if (kv.Value is PlayerMarker marker)
-                    marker.FaceNumberAt(camera);
-            }
-        }
+        void OrientNumbersFor(Camera camera) =>
+            JerseyNumbers.Orient(camera, m_Markers, m_NumberDepthLift, m_NumberLiftLimit);
 
         void Update()
         {
@@ -152,6 +148,7 @@ namespace Stadium3D.Pitch
         void CollectViews()
         {
             m_Views.Clear();
+            m_Markers.Clear();
 
             var roster = m_Sim != null ? m_Sim.Roster : null;
 
@@ -173,6 +170,7 @@ namespace Stadium3D.Pitch
 
                 if (identity == null) continue;
                 m_Views[identity.Id] = markers[i];
+                m_Markers.Add(markers[i]);
             }
 
             if (m_Ball == null)

@@ -100,6 +100,16 @@ namespace Stadium3D.Pitch
         /// <summary>The roster id this marker was built for. Survives the scene save; the identity does not.</summary>
         public int PlayerId => m_PlayerId;
 
+        /// <summary>
+        /// Where a jersey number sits when nothing is pushing it, metres above the player's feet.
+        /// </summary>
+        /// <remarks>
+        /// Clear of a 1.85 m body with a little air, so the number reads against turf rather than against
+        /// the shoulders. A constant because the builder places it and <see cref="FaceNumberAt"/> moves it,
+        /// and two copies of 2.15 in different files is one edit away from numbers that drift apart.
+        /// </remarks>
+        public const float NumberRestHeight = 2.15f;
+
         /// <inheritdoc/>
         public void Bind(PlayerIdentity identity)
         {
@@ -146,9 +156,14 @@ namespace Stadium3D.Pitch
         /// than one of them. <see cref="Camera.onPreCull"/> gives each camera its own chance to orient the
         /// numbers before it draws.
         /// </remarks>
-        public void FaceNumberAt(Camera camera)
+        public void FaceNumberAt(Camera camera, float lift = 0f)
         {
             if (m_Number == null || camera == null) return;
+
+            // Height is set here rather than left where the builder put it, because it is per camera: two
+            // walls looking at the same player from different distances want the number in different
+            // places. See JerseyNumbers for why the lift is measured against a reference depth.
+            m_Number.transform.localPosition = new Vector3(0f, NumberRestHeight + lift, 0f);
 
             Vector3 toCamera = camera.transform.position - m_Number.transform.position;
             toCamera.y = 0f;                                    // upright: never tilt a jersey number

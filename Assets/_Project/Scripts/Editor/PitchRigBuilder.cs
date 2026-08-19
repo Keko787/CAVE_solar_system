@@ -153,7 +153,7 @@ namespace Stadium3D.EditorTools
             // read from the team walls where the player is close to life-size.
             var numberGo = new GameObject("Number");
             numberGo.transform.SetParent(go.transform, false);
-            numberGo.transform.localPosition = new Vector3(0f, 2.15f, 0f);
+            numberGo.transform.localPosition = new Vector3(0f, PlayerMarker.NumberRestHeight, 0f);
             var number = numberGo.AddComponent<TextMesh>();
             number.text = identity.Number.ToString();
             // Sized against the 1.85 m body, not against the camera: a number roughly a third of a player's

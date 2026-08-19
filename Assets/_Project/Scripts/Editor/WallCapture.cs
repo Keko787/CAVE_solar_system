@@ -81,8 +81,10 @@ namespace Stadium3D.EditorTools
             {
                 cam.TrackForPreview(sim);
 
-                // The driver's per-camera number orientation is not running in edit mode.
-                foreach (var marker in markers) marker.FaceNumberAt(cam.Camera);
+                // The driver's per-camera number pass is not running in edit mode. Calling the same
+                // entry point rather than FaceNumberAt directly, so a capture cannot quietly disagree
+                // with the room about where the numbers are.
+                JerseyNumbers.Orient(cam.Camera, markers);
 
                 cam.Camera.Render();
                 Save(cam.View, Path.Combine(outDir, $"{label}-{Sanitize(cam.name)}.png"));
