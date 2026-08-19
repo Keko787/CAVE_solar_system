@@ -112,3 +112,6 @@ InitTestScene*.unity*
 
 # Local clones of the RoutePEARL app + optimizer — run locally for the embedded web panel; not CARE code.
 /external/
+
+# FrameBudgetProbe reports. The numbers that matter are recorded in Docs/; these are per-run and per-GPU.
+/FrameBudget*.txt

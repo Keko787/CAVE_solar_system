@@ -279,7 +279,54 @@ Descriptor: `R8G8B8A8_SRGB` (the URP config has `m_SupportsHDR: 0`), `D24_UNorm_
 
 That is 4.95× a 4K frame every frame, **12 full URP render loops** (8 display + 4 pitch), at `m_MSAA: 4` — roughly 164 M raster samples per frame. All four viewports are `ClusterNode="0"`: **one PC**.
 
-*No millisecond figures appear here on purpose.* The pixel counts are arithmetic on the `.vrx` viewport rects; anything in ms would be fabricated without knowing the GPU. **Measure at M2 with a stress scene**, not at M7 when the art is locked. Dropped frames in a stereo CAVE cause real discomfort, so this is a comfort issue, not just a perf one.
+*No millisecond figures appeared here for three milestones on purpose.* The pixel counts are arithmetic on the `.vrx` viewport rects; anything in ms would have been fabricated without a GPU. **Measure with a stress scene**, not at M7 when the art is locked. Dropped frames in a stereo CAVE cause real discomfort, so this is a comfort issue, not just a perf one.
+
+#### Measured at M4 — `FrameBudgetProbe`
+
+`Stadium3D ▸ Measure ▸ Frame Budget`, or `-executeMethod Stadium3D.EditorTools.FrameBudgetProbe.MeasureBatch`.
+300 timed frames of play 6 — four verticals, everything on the field moving — after 30 discarded, on an
+**NVIDIA Quadro RTX 4000** at the shipped 4× MSAA.
+
+| per frame | median | min | p95 |
+| --- | ---: | ---: | ---: |
+| CPU — sim, markers, cameras, trails, numbers | **0.20 ms** | 0.19 | 0.23 |
+| GPU — 12 loops, 41.1 MPix, one sync | **8.82 ms** | 8.45 | 9.49 |
+| **total** | **9.02 ms** | | |
+
+**Against 16.67 ms it fits with 7.65 ms spare — 54% used.** 60 Hz is the right line: both eyes of all four
+surfaces are already inside that 8.82, so a 120 Hz active-stereo wall delivering 60 Hz stereo pairs is
+what this number answers. Confirm the projector's actual mode on hardware alongside the test card.
+
+*What the probe measures and what it does not.* The four pitch cameras are the real ones out of the built
+scene at their shipped resolutions — that quarter of the frame is measured. The eight display loops cannot
+be: MiddleVR builds those cameras at runtime, so they are stood in for by a camera in the room carrying
+the mask `PitchIsolation` leaves, at the `.vrx` viewport sizes, twice per surface for two eyes. **Desk GPU,
+not the CAVE PC**, and no MiddleVR in the process. Read the display half as a floor on the cost.
+
+Two things in the breakdown are worth keeping:
+
+- **The floor is the expensive surface** — 1.40 ms against 1.23–1.31 for the walls — and it earns it: 78
+  renderers in frustum against 14–25, because top-down sees all 22 players, every marking, both trails and
+  the state lines at once. The display proxies see **2** renderers each, a wall and its panel, so that half
+  of the frame is pure fill rate exactly as the arithmetic predicted.
+- **The CPU side is 0.20 ms with a p95 of 0.23**, for the whole per-frame chain. That is the bake rather
+  than integrate decision showing up as a number: nothing in that path scales with how long the play has
+  been running, so the figure is a constant rather than a curve, and M5's panels inherit the headroom.
+
+*The probe found a settings split, which is the part worth acting on.* The project carries two URP assets
+and the quality levels divide between them: **Low → `Performance URP Config`** (HDR off, main-light and
+soft shadows off) is `m_CurrentQuality`, so it is what the editor, Play mode and the run above use — while
+**Standalone defaults to Ultra → `Quality URP Config`** (HDR on, main-light shadows on at 4096², soft
+shadows on). A built player would therefore not be the thing that was measured, which is the same shape as
+the Android-renderer bug: correct in the config you are looking at, wrong in the one that ships.
+
+Measured rather than assumed, the cost of that is **+0.77 ms — 9.79 ms total, still 59% of a 60 Hz frame**,
+and the reason it is that small is a defensive line written in M2: `StadiumCaveBuilder` sets
+`light.shadows = LightShadows.None` at the source and every pitch renderer has casting off, so a pipeline
+that supports shadows still finds nothing to cast one. Both URP assets also point at **Standalone Preset**
+now, so the Native RenderPass smearing cannot return in a build either. **Pin the level for builds anyway** —
+not because 0.77 ms matters, but because a demo that ships on a different pipeline from the one that was
+measured has an unmeasured budget again the moment anything changes.
 
 **The one certain win:** `m_ShadowDistance: 2.5` with `m_MainLightShadowmapResolution: 4096`. The pitch cameras stand 15–45 m from their subjects and receive **zero** shadowed pixels, yet URP still runs `MainLightShadowCasterPass` per camera and still rasterises a 4096² map. Turn `m_MainLightShadowsSupported` off entirely, reclaim the shadowmap, and use blob-shadow quads under the markers — which read better top-down anyway.
 
@@ -440,7 +487,8 @@ One thing already handled: `ProjectSettings.asset` has `runInBackground: 1`.
 | Risk | Standing |
 | --- | --- |
 | **Side-screen orientation in `MVR.vrx`** | Unresolved. `1.11125 − 2.3876/2 = −0.08255` exactly, and a Z-rotation cannot produce a side wall. M3 shipped at the desk with the side regions as authored guesses, so this now gates **M4 sign-off** rather than M3 start. **Test card on hardware, 20 minutes.** No desk test catches it |
-| **Frame budget** | 41.1 MPix and 12 render loops per frame is arithmetic. Cost in ms is still unmeasured — M2's stress test ran before the render chain actually worked end to end, so it measured less than it appeared to. Re-measure before M7 |
+| **Frame budget** | **Measured at M4 — 9.02 ms of a 16.67 ms frame, 54% used** (§4.4). M2's stress test had run before the render chain worked end to end, so it measured less than it appeared to; `FrameBudgetProbe` now measures all twelve loops on real hardware and is re-runnable per milestone. Two caveats stand: it is the desk GPU rather than the CAVE PC, and the eight display loops are a proxy with no MiddleVR in the process |
+| **A build would not be what was measured** | Standalone defaults to quality level Ultra → `Quality URP Config`, while the editor sits on Low → `Performance URP Config`. Costed at **+0.77 ms**, so not a cliff — the scene turns shadows off at the source regardless — but pin the level for builds so the shipped pipeline is the measured one |
 | **M1–M7 are flat** | **Still standing.** M3.5 proved the room can do better than four televisions, but with a placeholder that is now switched off. The four walls stay flat pictures by construction, and the answer does not actually ship until M8 |
 | **Build-time state that does not serialize** | **The dominant defect class so far — three instances in one milestone.** A builder sets something in memory, an offscreen render or an EditMode test confirms it, the scene is saved, and the state is gone. Neither kind of test touches a save/load round trip. Rule: anything a builder sets must be checked *after* a scene reload |
 | **MiddleVR clones a template camera** | `GrabTemplateCamera()` takes `Camera.allCameras[0]` and `Object.Instantiate`s that whole GameObject — components included — once per display camera. Any camera added to a CAVE scene is a candidate. `MVRTemplateCamera` at depth −1000 now claims the role; do not remove it |
@@ -729,9 +777,10 @@ per wall, and the floor draws both.
    depth separation, per-wall focus rings, the stadium bowl and route trails are all in.
 4. **Side-screen test card on the CAVE** (§3.1) — the one remaining M4 gate, and still the only thing
    at the desk that cannot be substituted for. Twenty minutes on hardware.
-5. **Re-measure the frame budget before M7.** M2's stress test ran before the render chain worked, so
-   the number it produced was measured against a pipeline that was not drawing what it draws now —
-   and M4 has since added a bowl, six renderers per player and four line renderers.
+5. ~~Re-measure the frame budget~~ — **9.02 ms of 16.67, 54% used**, on all twelve loops with the bowl,
+   six renderers per player and four line renderers in place (§4.4). `FrameBudgetProbe` is in the repo,
+   so every milestone from here can be compared against this one rather than against arithmetic.
+6. **Pin the build's quality level** to the pipeline that was measured, per the risk table.
 
 **The M3.5 figure is settled: placeholder, off by default.** It was a probe, it answered its
 question, and `IncludeRoomFigure` in `StadiumCaveBuilder` keeps it out of the built scene. The
