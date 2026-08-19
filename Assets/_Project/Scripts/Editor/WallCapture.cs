@@ -93,6 +93,16 @@ namespace Stadium3D.EditorTools
             foreach (var trail in Object.FindObjectsOfType<RouteTrail>(true))
                 trail.Apply(sim, trail.Side == TeamSide.Home ? homeFocus : awayFocus);
 
+            // Same reason as the trails: a team wall's card is about whoever that wall settled on, and the
+            // driver that would normally carry that is not running in edit mode.
+            foreach (var hud in Object.FindObjectsOfType<StatHud>(true))
+            {
+                if (hud is TeamWallStatHud card)
+                    card.Apply(sim, card.Side == TeamSide.Home ? homeFocus : awayFocus);
+                else
+                    hud.Apply(sim);
+            }
+
             foreach (var cam in cameras)
             {
                 cam.TrackForPreview(sim);

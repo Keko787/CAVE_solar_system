@@ -55,6 +55,8 @@ namespace Stadium3D.Pitch
         int m_RightFocus;
         int m_LeftFocus;
 
+        bool m_StatPanelsVisible = true;
+
         /// <summary>The running sim, or null before <see cref="Awake"/>.</summary>
         public FootballSim Sim => m_Sim;
 
@@ -167,6 +169,27 @@ namespace Stadium3D.Pitch
 
         /// <summary>The player a wall is following, or 0 before it has settled on anyone.</summary>
         public int FocusOf(TeamSide wall) => wall == TeamSide.Home ? m_RightFocus : m_LeftFocus;
+
+        /// <summary>Show or hide every stat readout at once. §7 gives this to the wand's Button3.</summary>
+        /// <remarks>
+        /// All three surfaces together, because the thing a viewer wants is the picture without furniture —
+        /// hiding the front wall's down and distance while two team walls keep their cards is not a state
+        /// anybody asked for. Found rather than cached: this runs on a button press, not per frame, and a
+        /// cache would be one more thing to invalidate when the rig is rebuilt.
+        /// </remarks>
+        public void SetStatPanelsVisible(bool visible)
+        {
+            m_StatPanelsVisible = visible;
+
+            foreach (var hud in FindObjectsOfType<StatHud>(true))
+                hud.SetVisible(visible);
+        }
+
+        /// <summary>Flip the stat readouts.</summary>
+        public void ToggleStatPanels() => SetStatPanelsVisible(!m_StatPanelsVisible);
+
+        /// <summary>Whether the readouts are currently drawn.</summary>
+        public bool StatPanelsVisible => m_StatPanelsVisible;
 
         /// <summary>Register the ball's view.</summary>
         public void RegisterBall(BallMarker ball) => m_Ball = ball;

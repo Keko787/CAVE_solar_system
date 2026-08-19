@@ -95,6 +95,7 @@ namespace Stadium3D.EditorTools
             RenderSettings.fog = false;
 
             var cameras = BuildCameras(world != null ? world.transform : null);
+            StatPanelBuilder.Build(cameras.Front, cameras.Right, cameras.Left);
             BuildPanels(room != null ? room.transform : null, cameras);
 
             var isolation = new GameObject("PitchIsolation");

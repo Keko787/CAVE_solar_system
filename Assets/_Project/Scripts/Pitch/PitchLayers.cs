@@ -74,6 +74,18 @@ namespace Stadium3D.Pitch
         public const string Numbers = "PitchNumbers";
 
         /// <summary>
+        /// The front wall's stat readout. Front only.
+        /// </summary>
+        /// <remarks>
+        /// The two team walls carry their own readouts on <see cref="RightWall"/> and <see cref="LeftWall"/>,
+        /// which already exist for exactly this purpose. The front wall has no such layer of its own —
+        /// every entry in <see cref="BroadcastMask"/> is shared with the floor — and a readout parked two
+        /// metres in front of the broadcast camera sits inside the floor camera's 48.9 m ortho box, where
+        /// it would draw as text lying across the middle of the field. Hence one layer, for one surface.
+        /// </remarks>
+        public const string Hud = "PitchHud";
+
+        /// <summary>
         /// Football rendered as <b>real geometry standing in the room</b> — the life-size figure in M3.5 and
         /// the miniature field in M8.
         /// </summary>
@@ -91,13 +103,13 @@ namespace Stadium3D.Pitch
         /// Every pitch layer the MiddleVR display cameras must strip. <see cref="Hologram"/> is deliberately
         /// absent — it is the content that exists to be seen in the room.
         /// </summary>
-        public static int PitchMask => Mask(Shared, Players, RightWall, LeftWall, Tactical, Stadium, Numbers);
+        public static int PitchMask => Mask(Shared, Players, RightWall, LeftWall, Tactical, Stadium, Numbers, Hud);
 
         /// <summary>Just the room-scale stereo content, for anything that needs to isolate it.</summary>
         public static int HologramMask => Mask(Hologram);
 
         /// <summary>The broadcast camera on the front wall: the whole field, both teams, no tactical overlay.</summary>
-        public static int BroadcastMask => Mask(Shared, Players, Stadium);
+        public static int BroadcastMask => Mask(Shared, Players, Stadium, Hud);
 
         /// <summary>The home-team isolation camera on the right wall.</summary>
         /// <remarks>
