@@ -1,0 +1,22 @@
+{
+    "name": "Stadium3D.Editor",
+    "rootNamespace": "Stadium3D.EditorTools",
+    "references": [
+        "Stadium3D.Runtime",
+        "UnityEditor.TestRunner",
+        "UnityEngine.TestRunner",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
