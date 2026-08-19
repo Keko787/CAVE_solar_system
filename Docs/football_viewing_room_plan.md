@@ -407,8 +407,8 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | **M1** ✅ | Sim core, pure C# — field math, bake pipeline, game state, drive content, `timeScale` first-class | **Done** — 271/271 EditMode assertions green in 2022.3.9f1, including the drive acceptance suite |
 | **M2** ✅ | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, main-light shadows off | **Done** — 283/283 green; field and drive verified by headless renders from the broadcast angle |
 | **M3** ✅ | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | **Done** — 303/303 green; all four surfaces rendered and inspected. Side-wall regions still unverified against hardware |
-| **M3.5** | **One life-size player, real geometry, correct stereo, standing in the room** | Go / no-go on the whole concept — before stats, before overlays |
-| **M4** | Overlays — LOS, first-down line, down markers, route trails, focus rings, per-wall dim/ghost. Side walls solved for life-size framing | Floor is legible; markers track game state |
+| **M3.5** ✅ | **One life-size player, real geometry, correct stereo, standing in the room** | **Done, and switched off.** It answered the go/no-go; the figure itself was a placeholder, not content. Getting there took four defects no test in the suite could see — see *M2–M3.5 as built* |
+| **M4** | Overlays — LOS, first-down line, down markers, route trails, focus rings, per-wall dim/ghost. Side walls solved for life-size framing | Floor is legible; markers track game state. **Drop `Players` from `RightWallMask`/`LeftWallMask` once the dressing renderers exist** — it is in both masks today only because nothing lives on those layers yet |
 | **M5** | Stat panels, coplanar with the video, toggleable | Values match M1's expected box score |
 | **M6** | Wand — wall picking subsystem, always-on ray, head-yaw default focus, transport | Gamepad-as-Primary at the desk; wand on hardware |
 | **M6.5** | **Attract / idle** — stale-tracker fallback, docent reset, drive variants, seamless loop join | Runs unattended for an hour without degrading |
@@ -439,9 +439,12 @@ One thing already handled: `ProjectSettings.asset` has `runInBackground: 1`.
 
 | Risk | Standing |
 | --- | --- |
-| **Side-screen orientation in `MVR.vrx`** | Unresolved. `1.11125 − 2.3876/2 = −0.08255` exactly, and a Z-rotation cannot produce a side wall. Blocks M3. **Test card on hardware, 20 minutes.** No desk test catches it |
-| **Frame budget** | 41.1 MPix and 12 render loops per frame is arithmetic. Cost in ms is unknown and deliberately unestimated. Measure at M2 |
-| **M1–M7 are flat** | A skeptic will ask why this isn't four televisions, and until M3.5 they are right. That is why M3.5 exists |
+| **Side-screen orientation in `MVR.vrx`** | Unresolved. `1.11125 − 2.3876/2 = −0.08255` exactly, and a Z-rotation cannot produce a side wall. M3 shipped at the desk with the side regions as authored guesses, so this now gates **M4 sign-off** rather than M3 start. **Test card on hardware, 20 minutes.** No desk test catches it |
+| **Frame budget** | 41.1 MPix and 12 render loops per frame is arithmetic. Cost in ms is still unmeasured — M2's stress test ran before the render chain actually worked end to end, so it measured less than it appeared to. Re-measure before M7 |
+| **M1–M7 are flat** | **Still standing.** M3.5 proved the room can do better than four televisions, but with a placeholder that is now switched off. The four walls stay flat pictures by construction, and the answer does not actually ship until M8 |
+| **Build-time state that does not serialize** | **The dominant defect class so far — three instances in one milestone.** A builder sets something in memory, an offscreen render or an EditMode test confirms it, the scene is saved, and the state is gone. Neither kind of test touches a save/load round trip. Rule: anything a builder sets must be checked *after* a scene reload |
+| **MiddleVR clones a template camera** | `GrabTemplateCamera()` takes `Camera.allCameras[0]` and `Object.Instantiate`s that whole GameObject — components included — once per display camera. Any camera added to a CAVE scene is a candidate. `MVRTemplateCamera` at depth −1000 now claims the role; do not remove it |
+| **Pitch masks are subsets of `PitchMask`** | Structural, and it turns one mistake into a black room: `PitchIsolation`'s `&= ~PitchMask` takes any camera carrying a pitch mask to exactly `0x00000000`. Guarded, not eliminated |
 | **`.vrx` lives outside the repo** | Three live paths into two foreign project trees. M0 must repoint them all |
 | **MiddleVR pinned by absolute path** | `Packages/manifest.json` binds the repo to one machine. Document it |
 | **Stop-start pacing** | Football reads to a newcomer as standing around punctuated by chaos. The slow-motion hero beat is the mitigation |
@@ -457,6 +460,7 @@ One thing already handled: `ProjectSettings.asset` has `runInBackground: 1`.
 | The three amendments in §1 | **All accepted** — floor reoriented to 1:22 with no jersey identity, side walls solved for life-size framing, beat schedule with slow motion |
 | Namespace | **`Stadium3D.*`** — swept in M0; `Care.*` and `VRShootingGallery` are gone |
 | Repo | **Local only**, no remote. `C:\Users\Exx\KostageProjects\Stadium-3D-Football` |
+| M3.5 room figure | **Placeholder — off by default.** `IncludeRoomFigure` in `StadiumCaveBuilder`. The component, its menu item and its tests stay; M8 is where room-scale geometry actually lands |
 
 ### M0 as built
 
@@ -540,3 +544,117 @@ box score and a liability the moment anyone wants free play.
 Note that field position gained (65 yd) and box-score total yards (75 yd) legitimately differ,
 because a penalty moves the ball without being charged as offensive yardage. Both are pinned, and a
 test asserts they *do not* match so the gap does not get "fixed" later.
+
+### M2–M3.5 as built
+
+M2 built the field and 22 markers behind an Editor builder; M3 hung four cameras and four panels on
+the CAVE walls; M3.5 put one life-size figure in the room. Every milestone was green at the desk —
+283/283, then 303/303 — and every one of them shipped a defect the suite could not have caught.
+
+| | |
+| --- | --- |
+| Scene | `StadiumCave.unity`, 220 GameObjects, pitch parked at −1500 m |
+| Cameras | 4 pitch rigs → 4 RenderTextures; front and floor 2560×1600, sides 1719×1600 |
+| Masks | Broadcast `0x0008C000`, Home `0x0029C000`, Away `0x002AC000`, Floor `0x0004C000` |
+| Display | 8 MiddleVR eye cameras at `0xFFD03FFF` — everything except the pitch |
+
+#### The defect class that cost the most: state that does not survive a save
+
+Three separate bugs, one shape. A builder establishes something in memory, it is verified, the scene
+is written to disk, and the state is silently dropped.
+
+- **`PitchCameras.cs` declared four MonoBehaviours in one file.** Unity creates a `MonoScript` only
+  for the class whose name matches the filename, and no class `PitchCameras` existed — so none of the
+  four rigs could be serialized into a scene at all. `AddComponent<T>()` worked at build time, which
+  is exactly why it survived review: `WallCapture` used those live objects and produced eight
+  correct-looking wall renders from cameras that could never persist. The saved scene had four camera
+  GameObjects carrying no components.
+- **`PlayerMarker.m_Identity` was a plain field with no `[SerializeField]`.** Bound at build time,
+  null after every reload. The driver registered none of the 22 markers, so 22 correctly built bodies
+  stood on the field while nothing ever moved them.
+- Both were invisible to the two things that were being run. An EditMode test and an offscreen
+  capture each work with live in-memory objects; **only a save/load round trip exercises the failure.**
+
+The fix pattern is worth keeping: serialize the *key*, resolve the object at load. `PlayerMarker` now
+stores a roster id and `FootballSimDriver` re-binds against `ScriptedDrive` in `Awake`, which also
+stops the scene carrying a stale duplicate of the roster.
+
+#### MiddleVR duplicates a template camera, components and all
+
+`MVRManagerScript.GrabTemplateCamera()` takes `Camera.allCameras[0]` and `MVRTools.CreateNodes`
+calls `Object.Instantiate` on that entire GameObject once per display camera. The moment the pitch
+rigs became the only cameras in the scene, all eight MiddleVR eye cameras came back as clones of a
+`PitchCameraBase`. Each then did three separate things that draw nothing: allocated its own
+2560×1600 render target, pointed itself at that instead of at its wall, and carried a pitch culling
+mask.
+
+That last one is the trap worth naming. **Every pitch mask is a subset of `PitchMask` by
+construction**, because both are assembled from the same layer set — so `PitchIsolation`'s
+`&= ~PitchMask` took each cloned display camera to exactly `0x00000000`. One clone, and the room went
+black: walls, floor and the room's own geometry together, with no error anywhere.
+
+The builder now creates a bare `MVRTemplateCamera` and assigns it through
+`advancedProperties.TemplateCamera` — set by serialized property, so the builder keeps no
+compile-time MiddleVR reference — at depth −1000 so even the fallback path prefers it.
+`PitchIsolation` repairs a display camera that arrives carrying a rig instead of blinding it.
+
+#### The desktop CAVE was running the mobile renderer
+
+`Performance URP Config` pointed at **Android Preset**, which sets `m_UseNativeRenderPass: 1`.
+Native RenderPass is a tile-GPU optimisation; on desktop D3D11 the pass fails to open, and **a pass
+that never begins never runs its clear load action**. Every wall composited on top of every frame it
+had already drawn. Because the floor camera pans with the ball, static yard lines painted a fresh
+stripe each frame and the floor became a barcode — which reads as *objects are spawning*, not as a
+missing clear. Inherited from Sit-Rep, and it would have hit any render-texture-heavy scene.
+
+`Performance URP Config` now uses **Standalone Preset**, and the render targets take their sample
+count from `QualitySettings.antiAliasing` rather than a hardcoded `4`, so target and pipeline cannot
+drift apart again. An MSAA mismatch here is not a quality problem but a correctness one.
+
+#### A wall that was plausible and wrong
+
+`AwayIsoCamera` was left at the default `TeamSide.Home`: two cameras at the same `z = −16` showing
+the same team, on the two walls whose entire purpose is to show different ones. Nothing about the
+image said so. It was caught by reading `mask=0x0029C000` in the diagnostic and recognising it as
+`RightWallMask`, which is the argument for printing masks as hex rather than trusting the picture.
+
+#### What actually found these
+
+Three wrong guesses preceded the first real fix. `PitchDiagnostics` ended that: it installs itself at
+runtime, prints the whole chain once — layers, driver, every pitch camera with its mask and render
+target, every panel with its source and bound texture, every display camera with whether it can see
+the panel layer — and deletes itself. `pitch cameras: 0` and `pitch cameras: 12` were each
+unambiguous the moment they appeared. It costs nothing, needs no scene edit, and should stay.
+
+The standing lesson across M1, M2 and M3 is now consistent: **the component suites have been green
+through every one of these.** What found the bugs was running the real content through the real
+pipeline — a bake report on shipped routes, an offscreen render, a save/load cycle, a Play-mode dump.
+
+One more instance surfaced the moment the suite was finally run at 309. `RoomHologramTests` was
+written during M3.5 and never executed, and its proportion check measured the whole hologram root —
+so the 0.9 m ground ring stood in for the shoulder span and reported a correctly proportioned figure
+as a pillar. The assertion was right, the scope was wrong, and the first failure masked a second
+assertion that never got to run. **A fixture that has never been run is not a fixture that passes**,
+and it costs nothing to keep the number honest by running it.
+
+### Next
+
+1. ~~Run the EditMode suite~~ — **309/309 green** in 2022.3.9f1. One failure found and fixed on the
+   way: see the note above on `RoomHologramTests`.
+2. **Commit.** M3.5, the four fixes above and the M3.5 switch-off are one large uncommitted change
+   set, still unlanded.
+3. **Side-screen test card on the CAVE** (§3.1). Still the only thing at the desk that cannot be
+   substituted for, and it now gates M4 sign-off.
+4. **M4** — overlays. The layer set already reserves `PitchTactical`, `PitchRightWall` and
+   `PitchLeftWall`; the first job is the per-wall dressing that lets `Players` come out of both side
+   masks.
+
+**The M3.5 figure is settled: placeholder, off by default.** It was a probe, it answered its
+question, and `IncludeRoomFigure` in `StadiumCaveBuilder` keeps it out of the built scene. The
+component, its builder menu item and its six tests stay — they are the groundwork M8 stands on, and a
+known life-size reference standing in the room is genuinely useful when checking the side walls.
+Rebuilding the CAVE scene drops the eight objects it left behind.
+
+One open question remains, and it is an M4 input: **`m_FramingScale = 1.0`** is true life-size, so a
+1.88 m player fills ~85% of the 2.2225 m wall. That is correct and very tight. 2.5–3 trades the
+life-size claim for context.

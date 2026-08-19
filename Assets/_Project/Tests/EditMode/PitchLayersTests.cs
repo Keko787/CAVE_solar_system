@@ -37,7 +37,7 @@ namespace Stadium3D.Football.Tests
                      {
                          PitchLayers.Shared, PitchLayers.Players, PitchLayers.RightWall, PitchLayers.LeftWall,
                          PitchLayers.Tactical, PitchLayers.Stadium, PitchLayers.CaveScreen,
-                         PitchLayers.Numbers, PitchLayers.Miniature,
+                         PitchLayers.Numbers, PitchLayers.Hologram,
                      })
                 Assert.That(LayerMask.NameToLayer(name), Is.GreaterThanOrEqualTo(0), name);
         }
@@ -124,7 +124,7 @@ namespace Stadium3D.Football.Tests
 
             Assert.That(Has(mask, PitchLayers.CaveScreen), Is.False,
                 "the panels are the one thing the display cameras exist to show");
-            Assert.That(Has(mask, PitchLayers.Miniature), Is.False,
+            Assert.That(Has(mask, PitchLayers.Hologram), Is.False,
                 "M8's miniature is real geometry in the room and must survive the strip");
         }
     }

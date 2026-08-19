@@ -34,6 +34,12 @@ namespace Stadium3D.Pitch
 
         static FootballSimDriver s_Instance;
 
+        // Enter-play-mode-without-domain-reload would otherwise carry the previous session's instance into
+        // the next one, and the second run would find a stale non-null s_Instance and disable itself. The
+        // option is off today, but CaveBox and Operators both guard against it and this has the same shape.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => s_Instance = null;
+
         FootballSim m_Sim;
         readonly Dictionary<int, IPlayerMarkerView> m_Views = new Dictionary<int, IPlayerMarkerView>();
         BallMarker m_Ball;
@@ -147,10 +153,24 @@ namespace Stadium3D.Pitch
         {
             m_Views.Clear();
 
+            var roster = m_Sim != null ? m_Sim.Roster : null;
+
             var markers = m_MarkerRoot.GetComponentsInChildren<PlayerMarker>(true);
             for (int i = 0; i < markers.Length; i++)
             {
                 var identity = markers[i].Identity;
+
+                // A marker loaded from a saved scene arrives with no identity: it is bound at build time and
+                // the reference does not serialize. Re-bind from the id, which does, against the roster the
+                // sim was built with a moment ago. This also keeps the scene honest across a drive edit —
+                // names, numbers and teams come from ScriptedDrive on every run, never from a stale copy
+                // baked into the scene file.
+                if (identity == null && roster != null)
+                {
+                    identity = roster.Get(markers[i].PlayerId);
+                    if (identity != null) markers[i].Bind(identity);
+                }
+
                 if (identity == null) continue;
                 m_Views[identity.Id] = markers[i];
             }
@@ -159,8 +179,10 @@ namespace Stadium3D.Pitch
                 m_Ball = m_MarkerRoot.GetComponentInChildren<BallMarker>(true);
 
             if (m_Views.Count == 0)
-                Debug.LogWarning("[Stadium3D] FootballSimDriver found no bound player markers under its " +
-                                 "root — run Stadium3D ▸ Build ▸ Football Pitch Rig.", this);
+                Debug.LogWarning($"[Stadium3D] FootballSimDriver bound no player markers under " +
+                                 $"\"{m_MarkerRoot.name}\" ({markers.Length} present). If markers are there, " +
+                                 "their roster ids do not match this drive — rebuild with " +
+                                 "Stadium3D ▸ Build ▸ Football Pitch Rig.", this);
         }
     }
 }

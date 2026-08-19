@@ -70,6 +70,20 @@ namespace Stadium3D.Pitch
         }
 
         /// <summary>Strip the pitch layers from every display camera. Idempotent.</summary>
+        /// <remarks>
+        /// <b>Why this looks for a pitch rig first.</b> Each pitch camera builds its mask as an allow-list
+        /// drawn from the same layers <see cref="PitchLayers.PitchMask"/> collects, so a pitch mask is by
+        /// construction a <em>subset</em> of it — and stripping one leaves exactly zero. Harmless while the
+        /// two sets of cameras stay distinct, and catastrophic the moment they do not: MiddleVR builds each
+        /// display camera by cloning a template GameObject wholesale, so if that template is a pitch rig,
+        /// every display camera arrives carrying one. This loop then blinds all eight and the room goes
+        /// black — walls, floor, and the room geometry with them.
+        ///
+        /// <para>So a stray rig is repaired rather than stripped. The real fix is upstream, in
+        /// <c>StadiumCaveBuilder</c>, which hands MiddleVR a camera of its own to clone. This is the net
+        /// that turns a mis-set template into a console error instead of a dark room in front of an
+        /// audience.</para>
+        /// </remarks>
         public void Apply()
         {
             int mask = PitchLayers.PitchMask;
@@ -78,8 +92,25 @@ namespace Stadium3D.Pitch
             foreach (var cam in MvrDisplay.Cameras())
             {
                 if (cam == null) continue;
-                cam.cullingMask &= ~mask;
                 n++;
+
+                var stray = cam.GetComponent<PitchCameraBase>();
+                if (stray != null)
+                {
+                    Debug.LogError(
+                        $"[Stadium3D] Display camera \"{cam.name}\" is a clone of a pitch rig " +
+                        $"({stray.GetType().Name}): it renders into a private render target instead of onto " +
+                        "its wall, and its culling mask would strip to zero. MiddleVR duplicates its " +
+                        "template camera for every display camera, so the template must not be one of ours " +
+                        "— rebuild with Stadium3D ▸ Build ▸ CAVE Football Scene. Repairing this one so the " +
+                        "room still draws.", cam);
+
+                    Destroy(stray);          // its OnDestroy releases the render target
+                    cam.targetTexture = null;
+                    cam.cullingMask = ~0;
+                }
+
+                cam.cullingMask &= ~mask;
             }
 
             CameraCount = n;

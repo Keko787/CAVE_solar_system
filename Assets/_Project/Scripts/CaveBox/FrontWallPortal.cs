@@ -9,7 +9,7 @@ namespace Stadium3D.CaveBox
     /// <summary>
     /// Opens the front CAVE wall into the simulated airspace (Phase 4, M0/M3). MiddleVR already renders
     /// each wall as a head-tracked, parallax-correct window, so the "portal" is <b>geometric</b>: in
-    /// <em>window</em> mode this ORs a <c>PitchMiniature</c> layer bit into every MiddleVR display camera's
+    /// <em>window</em> mode this ORs a <c>PitchHologram</c> layer bit into every MiddleVR display camera's
     /// culling mask and hides the front-wall renderer, so the operator sees <em>through</em> the wall to the
     /// airspace geometry with true off-axis depth; <em>wall</em> mode reverses it. Pure Unity — no <c>.vrx</c>
     /// edit (design plan risk #6). MVR's <c>UpdateCameraProperties</c> only rewrites near/far/projection each
@@ -29,7 +29,7 @@ namespace Stadium3D.CaveBox
 
         [SerializeField, Tooltip("Unity layers revealed through the wall when open — the airspace and the " +
             "sensor cones. Created by the portal-spike / sensing-visuals builders.")]
-        string[] m_RevealLayerNames = { "PitchMiniature" };
+        string[] m_RevealLayerNames = { "PitchHologram" };
 
         [SerializeField, Tooltip("The front-wall panel group, moved to the floor while the window is open so it " +
             "isn't standing in front of the airspace you opened the wall to see. Auto-found if empty.")]
@@ -85,7 +85,7 @@ namespace Stadium3D.CaveBox
             if (m_RevealMask == 0)
             {
                 Debug.LogError("[FrontWallPortal] None of the reveal layers exist. Run " +
-                    "the PitchMiniature layer is defined in Project Settings ▸ Tags and Layers.", this);
+                    "the PitchHologram layer is defined in Project Settings ▸ Tags and Layers.", this);
                 enabled = false;
                 return;
             }
@@ -99,7 +99,7 @@ namespace Stadium3D.CaveBox
 
         // Coroutine Start: MiddleVR builds its display cameras during MVRManager's Awake, but not
         // necessarily before ours — wait for them, then stamp the default (closed) state, which also strips
-        // PitchMiniature from the display cameras in case they cloned a template mask that included it.
+        // PitchHologram from the display cameras in case they cloned a template mask that included it.
         IEnumerator Start()
         {
             float timeout = 10f;

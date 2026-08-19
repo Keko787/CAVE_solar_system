@@ -53,13 +53,27 @@ namespace Stadium3D.Pitch
         public const string Numbers = "PitchNumbers";
 
         /// <summary>
-        /// Reserved for M8's 3D miniature — the one pitch thing the display cameras are allowed to see,
-        /// because it is real geometry in the room rather than a picture of somewhere else.
+        /// Football rendered as <b>real geometry standing in the room</b> — the life-size figure in M3.5 and
+        /// the miniature field in M8.
         /// </summary>
-        public const string Miniature = "PitchMiniature";
+        /// <remarks>
+        /// The one category of pitch content the MiddleVR display cameras are allowed to see, and the only
+        /// thing in the whole demo that is genuinely stereoscopic. Everything on the four walls is a flat
+        /// picture of somewhere else — correct, useful, and reproducible on four televisions. This layer is
+        /// where the room stops being a video wall, so it is deliberately excluded from
+        /// <see cref="PitchMask"/> and from every wall camera's allow-list: the display cameras must keep it,
+        /// and the pitch cameras must never pick it up and render a person floating over the field.
+        /// </remarks>
+        public const string Hologram = "PitchHologram";
 
-        /// <summary>Every pitch layer. What the MiddleVR display cameras must strip.</summary>
+        /// <summary>
+        /// Every pitch layer the MiddleVR display cameras must strip. <see cref="Hologram"/> is deliberately
+        /// absent — it is the content that exists to be seen in the room.
+        /// </summary>
         public static int PitchMask => Mask(Shared, Players, RightWall, LeftWall, Tactical, Stadium, Numbers);
+
+        /// <summary>Just the room-scale stereo content, for anything that needs to isolate it.</summary>
+        public static int HologramMask => Mask(Hologram);
 
         /// <summary>The broadcast camera on the front wall: the whole field, both teams, no tactical overlay.</summary>
         public static int BroadcastMask => Mask(Shared, Players, Stadium);

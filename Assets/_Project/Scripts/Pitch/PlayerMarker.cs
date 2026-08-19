@@ -80,16 +80,31 @@ namespace Stadium3D.Pitch
         [SerializeField] Material m_AwayDimmed;
         [SerializeField] Material m_AwayGhosted;
 
+        [SerializeField, Tooltip("Roster id this marker draws. Only the key is stored — the identity itself " +
+            "is resolved from the live roster at load, so a roster edit never leaves a stale name on a body.")]
+        int m_PlayerId;
+
         PlayerIdentity m_Identity;
         MarkerEmphasis m_Emphasis = MarkerEmphasis.Normal;
 
         /// <summary>The roster entry this marker draws, or null before it is bound.</summary>
+        /// <remarks>
+        /// Deliberately not serialized, and the consequence is worth recording. A marker is bound at build
+        /// time, and a plain object reference lives only until the scene is saved — so every marker came back
+        /// from a reload with a null identity, the driver registered none of them, and twenty-two correctly
+        /// built bodies stood on the field while nothing ever moved them. <see cref="PlayerId"/> is the part
+        /// that survives; the driver re-binds from it on Awake.
+        /// </remarks>
         public PlayerIdentity Identity => m_Identity;
+
+        /// <summary>The roster id this marker was built for. Survives the scene save; the identity does not.</summary>
+        public int PlayerId => m_PlayerId;
 
         /// <inheritdoc/>
         public void Bind(PlayerIdentity identity)
         {
             m_Identity = identity;
+            m_PlayerId = identity == null ? 0 : identity.Id;
             name = identity == null ? "Marker" : $"#{identity.Number} {identity.Name}";
 
             if (m_Number != null)

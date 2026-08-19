@@ -40,12 +40,40 @@ namespace Stadium3D.Pitch
 
         void LateUpdate()
         {
-            if (m_Source == null || m_Screen == null) return;
+            if (m_Screen == null) return;
 
-            var view = m_Source.View;
-            if (view == null || view == m_Bound) return;
+            var view = m_Source != null ? m_Source.View : null;
 
-            Bind(view);
+            if (view == null)
+            {
+                ShowNoSignal();
+                return;
+            }
+
+            if (view != m_Bound) Bind(view);
+        }
+
+        /// <summary>
+        /// Draw a dim placeholder when there is no render target yet.
+        /// </summary>
+        /// <remarks>
+        /// A camera's render target is created in its <c>Awake</c>, so outside play mode there is nothing to
+        /// show and the panel would otherwise draw pure black. Black is exactly what a mis-facing panel, a
+        /// dead camera and a broken culling mask all look like, so the one state that is <em>expected</em>
+        /// should not be indistinguishable from three that are bugs. A visible slate says "this panel is
+        /// here, wired, and waiting for play mode".
+        /// </remarks>
+        void ShowNoSignal()
+        {
+            if (m_Bound == null && m_Material != null) return;   // already showing the slate
+
+            m_Bound = null;
+            EnsureMaterial();
+            m_Material.mainTexture = null;
+            if (m_Material.HasProperty("_BaseMap")) m_Material.SetTexture("_BaseMap", null);
+            if (m_Material.HasProperty("_BaseColor")) m_Material.SetColor("_BaseColor", new Color(0.10f, 0.13f, 0.16f));
+            m_Screen.sharedMaterial = m_Material;
+            m_Screen.transform.localScale = new Vector3(m_SurfaceMeters.x, m_SurfaceMeters.y, 1f);
         }
 
         /// <summary>
@@ -61,13 +89,7 @@ namespace Stadium3D.Pitch
         public void Bind(Texture view)
         {
             m_Bound = view;
-
-            if (m_Material == null)
-            {
-                var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Texture");
-                m_Material = new Material(shader) { name = name + "_panel" };
-            }
-
+            EnsureMaterial();
             m_Material.mainTexture = view;
             if (m_Material.HasProperty("_BaseMap")) m_Material.SetTexture("_BaseMap", view);
             if (m_Material.HasProperty("_BaseColor")) m_Material.SetColor("_BaseColor", Color.white);
@@ -81,6 +103,22 @@ namespace Stadium3D.Pitch
             else                             w = h * imageAspect;   // image is taller: bars at the sides
 
             m_Screen.transform.localScale = new Vector3(w, h, 1f);
+        }
+
+        void EnsureMaterial()
+        {
+            if (m_Material != null) return;
+
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Texture");
+            m_Material = new Material(shader) { name = name + "_panel" };
+
+            // Double-sided, deliberately. Getting a panel's facing wrong is a one-character mistake, and its
+            // symptom under backface culling is a completely blank wall — which looks identical to a dead
+            // camera, a missing render target, or a culling-mask bug, and costs an afternoon to tell apart.
+            // Drawing both sides turns that same mistake into a MIRRORED image: still wrong, but instantly
+            // recognisable and never confused for anything else.
+            if (m_Material.HasProperty("_Cull"))
+                m_Material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
         }
 
         /// <summary>Wire the quad from a builder.</summary>

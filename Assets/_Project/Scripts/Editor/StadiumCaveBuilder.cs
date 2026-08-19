@@ -37,6 +37,25 @@ namespace Stadium3D.EditorTools
         /// </summary>
         public static readonly Vector3 PitchOrigin = new Vector3(0f, -1500f, 0f);
 
+        /// <summary>
+        /// Whether the M3.5 figure goes into the built scene. <b>Off.</b>
+        /// </summary>
+        /// <remarks>
+        /// M3.5 was a go/no-go probe, not content: one life-size figure of real geometry, in correct
+        /// stereo, to answer "why a CAVE rather than four televisions" before any effort went into stats
+        /// or overlays. It answered it. The placeholder itself is not what ships — M8 puts real geometry
+        /// in the room properly, as the miniature field.
+        ///
+        /// <para>A switch rather than a deletion, because the component and its tests are the groundwork
+        /// M8 stands on, and because a known life-size reference standing in the room is genuinely useful
+        /// when checking the side walls. Build it deliberately from
+        /// <c>Stadium3D ▸ Build ▸ Life-Size Room Figure (M3.5)</c>.</para>
+        ///
+        /// <para>Deliberately <c>static readonly</c> rather than <c>const</c>: a <c>const false</c> makes
+        /// the guarded block unreachable and the compiler says so, which is noise rather than news.</para>
+        /// </remarks>
+        static readonly bool IncludeRoomFigure = false;
+
         [MenuItem("Stadium3D/Build/CAVE Football Scene", priority = 20)]
         public static void BuildScene()
         {
@@ -45,8 +64,11 @@ namespace Stadium3D.EditorTools
             EnsureFootballRegions();
 
             var room = InstantiatePrefab("Assets/_Project/Prefabs/Environment/CAVE_Room.prefab", "CAVE_Room");
-            InstantiatePrefab("Assets/_Project/Prefabs/Rig/MVRManager Variant.prefab", "MVRManager");
+            var mvr = InstantiatePrefab("Assets/_Project/Prefabs/Rig/MVRManager Variant.prefab", "MVRManager");
             InstantiatePrefab("Assets/_Project/Prefabs/Rig/MVR_URP Variant.prefab", "MVR_URP");
+
+            // Before the pitch cameras exist, so there is never a moment when MiddleVR could pick one.
+            BuildTemplateCamera(mvr);
 
             // The pitch, well below the room.
             PitchRigBuilder.BuildRig();
@@ -78,12 +100,25 @@ namespace Stadium3D.EditorTools
             var isolation = new GameObject("PitchIsolation");
             isolation.AddComponent<PitchIsolation>();
 
+            // The one stereoscopic thing in the room, and off by default — see IncludeRoomFigure.
+            // Everything on the four walls is a flat picture until M8, which is a known and accepted
+            // property of the design rather than something this placeholder was ever going to fix.
+            if (IncludeRoomFigure)
+            {
+                var hologram = RoomHologramBuilder.Build(room != null ? room.transform : null);
+                RoomHologramBuilder.BuildScaleRod(room != null ? room.transform : null,
+                                                  hologram.GetComponent<RoomHologram>().Anchor);
+            }
+
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.Refresh();
 
-            Debug.Log($"[Stadium3D] Built {ScenePath}: room + pitch at {PitchOrigin}, four cameras, four " +
-                      "panels. The side-wall regions are unverified until a test card is walked in the room.");
+            Debug.Log($"[Stadium3D] Built {ScenePath}: room + pitch at {PitchOrigin}, four cameras and " +
+                      $"four panels. Room figure: {(IncludeRoomFigure ? "included" : "off — M3.5 was a probe")}.\n" +
+                      "  The panels show a dim slate until you PRESS PLAY — a camera's render target is " +
+                      "created in Awake, which does not run on a scene the editor has merely loaded.\n" +
+                      "  The side-wall regions remain unverified until a test card is walked in the room.");
         }
 
         // ── regions ────────────────────────────────────────────────────────────────────────────────
@@ -124,6 +159,60 @@ namespace Stadium3D.EditorTools
             Debug.Log($"[Stadium3D] Region map: {added} football regions added ({map.Regions.Count} total).");
         }
 
+        // ── the camera MiddleVR clones ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Give MiddleVR a bare camera of its own to duplicate for its eight display cameras.
+        /// </summary>
+        /// <remarks>
+        /// <c>MVRManagerScript</c> builds every display camera by calling <c>Object.Instantiate</c> on a
+        /// template GameObject — <b>components and all</b> — and when no template is assigned it takes
+        /// <c>Camera.allCameras[0]</c>. Once the four pitch rigs became the only cameras in the scene, that
+        /// fallback picked one of them, and all eight display cameras came back as clones of a
+        /// <see cref="PitchCameraBase"/>. Each then did three separate things that draw nothing: allocated
+        /// its own 2560x1600 render target, pointed itself at that instead of at the wall, and carried a
+        /// pitch culling mask which <see cref="PitchIsolation"/> stripped to exactly zero. One clone, an
+        /// entirely black room, and not one error anywhere.
+        ///
+        /// <para>The template is deliberately plain. MiddleVR copies the camera settings as well as the
+        /// components, and a display camera needs the default everything-mask to see the room at all. The
+        /// very low depth is belt and braces: <c>Camera.allCameras</c> is sorted by depth, so even if the
+        /// assignment below is ever lost, the fallback path picks this camera rather than a pitch rig.</para>
+        /// </remarks>
+        static void BuildTemplateCamera(GameObject mvrManager)
+        {
+            var go = new GameObject("MVRTemplateCamera");
+            var cam = go.AddComponent<Camera>();
+            cam.depth = -1000f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = Color.black;
+
+            if (mvrManager == null) return;
+
+            // Assigned through the serialized property rather than the typed field: this builder has no
+            // compile-time reference to MiddleVR and should not grow one just to fill in a GameObject slot.
+            var script = mvrManager.GetComponent("MVRManagerScript");
+            if (script == null)
+            {
+                Debug.LogWarning("[Stadium3D] No MVRManagerScript on the MVRManager instance, so no template " +
+                                 "camera could be assigned. MiddleVR will fall back to cloning " +
+                                 "Camera.allCameras[0] — which is why MVRTemplateCamera sits at depth -1000.");
+                return;
+            }
+
+            var so = new SerializedObject(script);
+            var prop = so.FindProperty("advancedProperties.TemplateCamera");
+            if (prop == null)
+            {
+                Debug.LogWarning("[Stadium3D] MVRManagerScript has no advancedProperties.TemplateCamera — the " +
+                                 "MiddleVR template-camera API has moved. Falling back to camera depth.");
+                return;
+            }
+
+            prop.objectReferenceValue = go;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         // ── cameras and panels ─────────────────────────────────────────────────────────────────────
 
         struct WallRig
@@ -136,11 +225,19 @@ namespace Stadium3D.EditorTools
             var root = new GameObject("PitchCameras");
             if (pitchWorld != null) root.transform.SetParent(pitchWorld, false);
 
+            // The side is not a label: it picks the culling mask and the sideline the boom sits on, and both
+            // are read once in Awake. Left unset, both walls came up Home — two cameras at the same z showing
+            // the same team, on the two walls whose entire purpose is to show different ones.
+            var home = Cam<TeamIsoPitchCamera>(root.transform, "HomeIsoCamera");
+            var away = Cam<TeamIsoPitchCamera>(root.transform, "AwayIsoCamera");
+            home.SetSide(TeamSide.Home);
+            away.SetSide(TeamSide.Away);
+
             return new WallRig
             {
                 Front = Cam<BroadcastPitchCamera>(root.transform, "BroadcastCamera"),
-                Right = Cam<TeamIsoPitchCamera>(root.transform, "HomeIsoCamera"),
-                Left  = Cam<TeamIsoPitchCamera>(root.transform, "AwayIsoCamera"),
+                Right = home,
+                Left  = away,
                 Floor = Cam<FloorTopDownCamera>(root.transform, "FloorTopDownCamera"),
             };
         }
@@ -186,10 +283,10 @@ namespace Stadium3D.EditorTools
             var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             quad.name = "Screen";
             quad.transform.SetParent(go.transform, false);
-            // A region orients +Z INTO the surface so the readable face points back at the operator; a Unity
-            // quad shows its +Z face, so it turns to meet them. If a panel ever renders mirrored on hardware,
-            // this half-turn is the first thing to check.
-            quad.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            // No extra rotation. A CaveRegion orients +Z INTO the surface precisely so the readable face
+            // points back at the operator, and a Unity Quad's normal is -Z — the same convention the
+            // world-space UGUI panels in CaveBox already rely on. An earlier half-turn here turned every
+            // panel to face into the wall, and backface culling made all four of them invisible.
             Object.DestroyImmediate(quad.GetComponent<Collider>());
 
             // The wall-pick collider the wand raycasts in M6. On the panel, not on CAVE_Room, so wall
