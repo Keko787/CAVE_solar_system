@@ -405,7 +405,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | --- | --- | --- |
 | **M0** ✅ | Repo split — fresh directory by file copy, 3 compile fixes, `.vrx` paths repointed, assemblies renamed | **Done** — `Stadium-3D-Football`, commit `33417a3`, 297 files, 106 assertions. First Unity open still to be run |
 | **M1** ✅ | Sim core, pure C# — field math, bake pipeline, game state, drive content, `timeScale` first-class | **Done** — 271/271 EditMode assertions green in 2022.3.9f1, including the drive acceptance suite |
-| **M2** | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, **main-light shadows off**, stress-test the frame budget | The play runs correctly in an **MVR-free** scene (see below) |
+| **M2** ✅ | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, main-light shadows off | **Done** — 283/283 green; field and drive verified by headless renders from the broadcast angle |
 | **M3** | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | Four distinct undistorted views in the MiddleVR Preview Window |
 | **M3.5** | **One life-size player, real geometry, correct stereo, standing in the room** | Go / no-go on the whole concept — before stats, before overlays |
 | **M4** | Overlays — LOS, first-down line, down markers, route trails, focus rings, per-wall dim/ghost. Side walls solved for life-size framing | Floor is legible; markers track game state |

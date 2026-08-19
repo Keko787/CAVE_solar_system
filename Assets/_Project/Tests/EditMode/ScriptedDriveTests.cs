@@ -212,6 +212,52 @@ namespace Stadium3D.Football.Tests
             Assert.That(total, Is.LessThan(200000), "the whole drive should bake to well under 200k samples");
         }
 
+        // ── the spot does not wander ───────────────────────────────────────────────────────────────
+
+        [Test]
+        public void BallOn_StaysAtTheSnapSpotForTheWholePlay()
+        {
+            // This is a regression test for a bug 281 green assertions did not catch, because nothing
+            // exercised GameStateProjector.InPlay: the live ball position was being written into
+            // LineOfScrimmageYard, so the scoreboard read "OWN 30" at the snap of a play taken from the 35 —
+            // the ball starts in a shotgun quarterback's hands, five yards behind the line. A rendered still
+            // found it in one line of log output.
+            var sim = new FootballSim(ScriptedDrive.Build());
+            float spot = ScriptedDrive.Expected.Sequence[0].Yard;
+
+            foreach (float t in new[] { 0f, 0.5f, 1.5f, 3f, 4f })
+            {
+                sim.Director.SeekToPlay(0, t);
+                sim.Tick(0.0);
+
+                Assert.That(sim.Situation.LineOfScrimmageYard, Is.EqualTo(spot).Within(0.01f),
+                    $"the spot moved at t = {t:0.0}s — BALL ON must mean where the snap was taken from");
+                Assert.That(sim.Situation.DownAndDistance(), Is.EqualTo("1st & 10"),
+                    $"the chains moved at t = {t:0.0}s — the down must not flip while the play is live");
+            }
+        }
+
+        [Test]
+        public void LiveBallYard_TracksTheFootballWhileTheSpotStaysPut()
+        {
+            // The live position is still wanted — the floor's ball marker and M4's overlays both need it.
+            // It just travels somewhere it cannot be mistaken for the spot.
+            var sim = new FootballSim(ScriptedDrive.Build());
+
+            sim.Director.SeekToPlay(5, 0.2f);
+            sim.Tick(0.0);
+            float early = sim.Situation.LiveBallYard;
+
+            sim.Director.SeekToPlay(5, 4.5f);
+            sim.Tick(0.0);
+            float late = sim.Situation.LiveBallYard;
+
+            Assert.That(late, Is.Not.EqualTo(early).Within(1f), "the ball should have travelled downfield");
+            Assert.That(sim.Situation.LineOfScrimmageYard,
+                Is.EqualTo(ScriptedDrive.Expected.Sequence[5].Yard).Within(0.01f),
+                "while the spot stayed where the snap was taken from");
+        }
+
         // ── the headline: rewind equality ──────────────────────────────────────────────────────────
 
         [Test]

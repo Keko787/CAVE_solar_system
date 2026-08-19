@@ -47,22 +47,25 @@ Assets/_Project/
     Rig/           MVRManager Variant, MVR_URP Variant
   Scenes/CAVE/
     Boot/          BootMiddleVR2.unity
+    Pitch/         PitchSandbox.unity - the MiddleVR-free scene M2 is watched in
   Scripts/
     CaveBox/       Region map, panel placement, wand pointer/buttons, focus navigation,
                    MiddleVR display-camera access, the front-wall portal
     Football/      The sim: field math, route baking, ball solver, game state, drive
                    transport, stats, and the scripted drive content
+    Pitch/         Rendering the sim: field constants, camera layer masks, player and
+                   ball markers, and the single driver that ticks the sim
     Operators/     IOperatorInput, registry, wand + gamepad backends, edge sampling
     Telemetry/     InteractionLog
     Vr/            MiddleVRWand — the wand read every input path sits on
     Editor/        StadiumTestRunner, StadiumRoomBuilder, FrontWallGroupBuilder,
                    GamepadProbeBuilder
-  Tests/EditMode/  271 assertions across 21 files
+  Tests/EditMode/  283 assertions across 22 files
 ```
 
 Assemblies: `Stadium3D.Runtime`, `Stadium3D.Football`, `Stadium3D.Editor`, `Stadium3D.Tests`.
-Namespaces: `Stadium3D.CaveBox`, `Stadium3D.Football`, `Stadium3D.Operators`, `Stadium3D.Telemetry`,
-`Stadium3D.Vr`, `Stadium3D.EditorTools`.
+Namespaces: `Stadium3D.CaveBox`, `Stadium3D.Football`, `Stadium3D.Pitch`, `Stadium3D.Operators`,
+`Stadium3D.Telemetry`, `Stadium3D.Vr`, `Stadium3D.EditorTools`.
 
 `Stadium3D.Football` references **no** MiddleVR, XR or Input System assembly. That is deliberate: it
 makes "the sim runs off the Unity run loop" a structural property rather than a convention, so it

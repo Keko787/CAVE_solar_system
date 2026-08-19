@@ -3,6 +3,8 @@
     "rootNamespace": "Stadium3D.Tests",
     "references": [
         "Stadium3D.Runtime",
+        "Stadium3D.Editor",
+        "Unity.TextMeshPro",
         "Stadium3D.Football",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

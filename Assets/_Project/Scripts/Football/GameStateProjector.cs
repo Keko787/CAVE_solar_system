@@ -118,8 +118,8 @@ namespace Stadium3D.Football
         public static GameSituation Huddle(in GameSituation atSnap, float phaseTime, float huddleSeconds)
         {
             var s = atSnap;
-            float remaining = Mathf.Max(0f, huddleSeconds - phaseTime);
             s.PlayClockSeconds = Mathf.Max(0f, 40f - phaseTime);
+            s.LiveBallYard = atSnap.LineOfScrimmageYard;   // the ball is on the spot, waiting
             if (s.ClockRunning)
                 s.GameClockSeconds = Mathf.Max(0f, atSnap.GameClockSeconds - phaseTime);
             return s;
@@ -129,8 +129,16 @@ namespace Stadium3D.Football
         /// The situation at <paramref name="playTime"/> seconds into a live play.
         /// </summary>
         /// <remarks>
-        /// Down and distance stay at their snap values for the whole play — the front wall must not flip to
-        /// the next down while the ball is still in the air. Only the clocks and the ball spot move.
+        /// <b>Nothing about the spot or the chains moves during a play.</b> Down, distance and the line of
+        /// scrimmage all stay at their snap values until the whistle — the front wall must not flip to the
+        /// next down while the ball is still in the air, and "BALL ON" means the spot this snap was taken
+        /// from, not wherever the football currently is.
+        ///
+        /// <para>An earlier version moved <see cref="GameSituation.LineOfScrimmageYard"/> to the live ball
+        /// position, which made the readout say "OWN 30" pre-snap on a play taken from the 35 — because at
+        /// t = 0 the ball is in a shotgun quarterback's hands five yards behind the line. The live position
+        /// is still wanted, for the tactical overlay and the ball marker, so it now travels separately in
+        /// <see cref="GameSituation.LiveBallYard"/> where it cannot be mistaken for the spot.</para>
         /// </remarks>
         public static GameSituation InPlay(in GameSituation atSnap, PlayScript play, float playTime, float ballYard)
         {
@@ -138,8 +146,7 @@ namespace Stadium3D.Football
             s.PlayClockSeconds = 0f;
             s.ClockRunning = true;
             s.GameClockSeconds = Mathf.Max(0f, atSnap.GameClockSeconds - Mathf.Max(0f, playTime));
-            if (play != null)
-                s.LineOfScrimmageYard = ClampToField(ballYard);
+            s.LiveBallYard = ClampToField(ballYard);
             return s;
         }
 

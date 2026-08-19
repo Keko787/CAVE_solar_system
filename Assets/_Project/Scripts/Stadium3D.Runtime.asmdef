@@ -2,6 +2,7 @@
     "name": "Stadium3D.Runtime",
     "rootNamespace": "Stadium3D",
     "references": [
+        "Stadium3D.Football",
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "UnityEngine.UI",

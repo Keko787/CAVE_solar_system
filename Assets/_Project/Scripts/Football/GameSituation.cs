@@ -23,8 +23,13 @@ namespace Stadium3D.Football
         [Tooltip("Yards needed for a first down. Ignored for display when GoalToGo is set.")]
         public float DistanceYards;
 
-        [Tooltip("Absolute yard of the ball: 0 = home goal line, 50 = midfield, 100 = away goal line.")]
+        [Tooltip("Absolute yard the ball was SPOTTED on for this snap: 0 = home goal line, 50 = midfield, " +
+                 "100 = away goal line. Fixed for the whole play — this is what the scoreboard shows.")]
         public float LineOfScrimmageYard;
+
+        [Tooltip("Absolute yard the ball is at RIGHT NOW, which during a play is wherever the carrier or " +
+                 "the throw has taken it. Drives the tactical overlay, never the scoreboard readout.")]
+        public float LiveBallYard;
 
         [Tooltip("Which team has the ball.")]
         public TeamSide Possession;
