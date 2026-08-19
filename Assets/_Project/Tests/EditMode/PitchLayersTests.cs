@@ -96,15 +96,29 @@ namespace Stadium3D.Football.Tests
         }
 
         [Test]
-        public void JerseyNumbers_AppearOnlyOnTheTeamWalls()
+        public void JerseyNumbers_AppearOnlyOnTheirOwnTeamsWall()
         {
-            Assert.That(Has(PitchLayers.RightWallMask, PitchLayers.Numbers), Is.True);
-            Assert.That(Has(PitchLayers.LeftWallMask, PitchLayers.Numbers), Is.True);
-
-            Assert.That(Has(PitchLayers.BroadcastMask, PitchLayers.Numbers), Is.False,
+            // A number rides the same per-wall layer as the body it labels, so "which surfaces show
+            // numbers" is now the same question as "which surfaces show dressed bodies".
+            Assert.That(Has(PitchLayers.BroadcastMask, PitchLayers.RightWall), Is.False,
                 "eleven numbers inside eight yards of scrimmage are an unreadable pile on the front wall");
-            Assert.That(Has(PitchLayers.FloorMask, PitchLayers.Numbers), Is.False,
+            Assert.That(Has(PitchLayers.BroadcastMask, PitchLayers.LeftWall), Is.False);
+
+            Assert.That(Has(PitchLayers.FloorMask, PitchLayers.RightWall), Is.False,
                 "a vertical billboard seen from overhead is a white slab covering the body it labels");
+            Assert.That(Has(PitchLayers.FloorMask, PitchLayers.LeftWall), Is.False);
+        }
+
+        [Test]
+        public void TheSharedNumbersLayer_IsNoLongerWhatCarriesThem()
+        {
+            // One layer cannot be shown to one team wall and hidden from the other, so it had both walls
+            // drawing all twenty-two numbers — including for the eleven each wall had just ghosted out.
+            Assert.That(Has(PitchLayers.RightWallMask, PitchLayers.Numbers), Is.False);
+            Assert.That(Has(PitchLayers.LeftWallMask, PitchLayers.Numbers), Is.False);
+
+            // Still stripped from the display cameras, so anything put there later cannot reach the room.
+            Assert.That(Has(PitchLayers.PitchMask, PitchLayers.Numbers), Is.True);
         }
 
         [Test]

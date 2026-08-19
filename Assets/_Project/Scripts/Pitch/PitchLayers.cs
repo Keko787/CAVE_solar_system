@@ -34,10 +34,13 @@ namespace Stadium3D.Pitch
         /// <summary>Full-colour un-dimmed player markers. Broadcast and floor only.</summary>
         public const string Players = "PitchPlayers";
 
-        /// <summary>The home wall's per-player dressing: own team lit, opponents ghosted.</summary>
+        /// <summary>
+        /// The home wall's per-player dressing: own team lit, opponents ghosted — <b>and the home team's
+        /// jersey numbers</b>.
+        /// </summary>
         public const string RightWall = "PitchRightWall";
 
-        /// <summary>The away wall's per-player dressing.</summary>
+        /// <summary>The away wall's per-player dressing, and the away team's jersey numbers.</summary>
         public const string LeftWall = "PitchLeftWall";
 
         /// <summary>Routes, coverage shading, down markers. Floor only — broadcast must never show these.</summary>
@@ -50,15 +53,23 @@ namespace Stadium3D.Pitch
         public const string CaveScreen = "CaveScreen";
 
         /// <summary>
-        /// Jersey-number billboards. <b>The team walls only.</b>
+        /// <b>Reserved, and carrying nothing today.</b> Jersey numbers ride <see cref="RightWall"/> and
+        /// <see cref="LeftWall"/> instead.
         /// </summary>
         /// <remarks>
-        /// A layer of their own because identity has to appear on exactly one kind of surface. On the
-        /// broadcast wall, eleven numbers inside eight yards of scrimmage collapse into an unreadable pile;
-        /// on the floor at 1:22 a number is a vertical billboard seen from directly overhead, so it renders
-        /// as a white slab that obscures the very body it is labelling. Both were visible the moment the
-        /// walls were first rendered. The team walls are the one place a player is close to life-size and a
-        /// number both fits and means something.
+        /// The original reasoning was right as far as it went: identity belongs on exactly one kind of
+        /// surface. On the broadcast wall eleven numbers inside eight yards of scrimmage collapse into an
+        /// unreadable pile, and on the floor at 1:22 a number is a vertical billboard seen from directly
+        /// overhead, so it renders as a white slab across the body it labels.
+        ///
+        /// <para>What one shared layer cannot express is <em>whose</em> number. It is visible to both team
+        /// walls or neither, so the away wall drew all twenty-two — labelling eleven opponents it had just
+        /// deliberately ghosted out. The bodies said "not the subject" and the numbers said the opposite,
+        /// in an overlapping pile along the horizon. Putting each number on its own player's wall layer
+        /// answers both questions with the rule the bodies already follow.</para>
+        ///
+        /// <para>Kept defined, and kept inside <see cref="PitchMask"/>, so that anything put here later is
+        /// still stripped from the display cameras rather than appearing in the room.</para>
         /// </remarks>
         public const string Numbers = "PitchNumbers";
 
@@ -100,10 +111,10 @@ namespace Stadium3D.Pitch
         /// in <c>onPreCull</c> breaks the SRP batcher this project depends on. The cost is 44 extra
         /// renderers and no per-frame work at all.</para>
         /// </remarks>
-        public static int RightWallMask => Mask(Shared, RightWall, Stadium, Numbers);
+        public static int RightWallMask => Mask(Shared, RightWall, Stadium);
 
         /// <summary>The away-team isolation camera on the left wall. See <see cref="RightWallMask"/>.</summary>
-        public static int LeftWallMask => Mask(Shared, LeftWall, Stadium, Numbers);
+        public static int LeftWallMask => Mask(Shared, LeftWall, Stadium);
 
         /// <summary>The floor's top-down tactical camera. No stadium bowl — it would only occlude.</summary>
         public static int FloorMask => Mask(Shared, Players, Tactical);

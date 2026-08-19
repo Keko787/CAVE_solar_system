@@ -164,10 +164,11 @@ namespace Stadium3D.EditorTools
             number.alignment = TextAlignment.Center;
             number.color = Color.white;
 
-            // The number goes on its own layer so only the team walls show it — see PitchLayers.Numbers.
-            // Applied after the marker's own layer sweep, which would otherwise fold it back in.
-            int numberLayer = LayerMask.NameToLayer(PitchLayers.Numbers);
-            if (numberLayer >= 0) numberGo.layer = numberLayer;
+            // The number rides its own player's wall layer rather than a shared one, so each team wall
+            // labels its own eleven and nobody else's. A single Numbers layer is visible to both walls or
+            // to neither, which had the away wall drawing numbers for eleven opponents it had just ghosted
+            // out — and stacking them into a pile along the horizon on the way.
+            Stamp(numberGo, home ? PitchLayers.RightWall : PitchLayers.LeftWall);
 
             var marker = go.AddComponent<PlayerMarker>();
             marker.Configure(body.GetComponent<Renderer>(), chevron, blob, ring, number);
