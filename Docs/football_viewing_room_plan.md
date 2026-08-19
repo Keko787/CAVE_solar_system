@@ -408,7 +408,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | **M2** ✅ | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, main-light shadows off | **Done** — 283/283 green; field and drive verified by headless renders from the broadcast angle |
 | **M3** ✅ | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | **Done** — 303/303 green; all four surfaces rendered and inspected. Side-wall regions still unverified against hardware |
 | **M3.5** ✅ | **One life-size player, real geometry, correct stereo, standing in the room** | **Done, and switched off.** It answered the go/no-go; the figure itself was a placeholder, not content. Getting there took four defects no test in the suite could see — see *M2–M3.5 as built* |
-| **M4** | Overlays — LOS, first-down line, down markers, route trails, focus rings, per-wall dim/ghost. Side walls solved for life-size framing | Floor is legible; markers track game state. **Drop `Players` from `RightWallMask`/`LeftWallMask` once the dressing renderers exist** — it is in both masks today only because nothing lives on those layers yet |
+| **M4** ⏳ | Overlays — LOS, first-down line, route trails, focus rings, per-wall dim/ghost, stadium bowl. Side walls solved for life-size framing | **Built, not signed off** — 334/334 green, all four surfaces captured and inspected; `Players` is out of both side masks now that the dressing renderers exist. Held open by the side-screen test card on hardware |
 | **M5** | Stat panels, coplanar with the video, toggleable | Values match M1's expected box score |
 | **M6** | Wand — wall picking subsystem, always-on ray, head-yaw default focus, transport | Gamepad-as-Primary at the desk; wand on hardware |
 | **M6.5** | **Attract / idle** — stale-tracker fallback, docent reset, drive variants, seamless loop join | Runs unattended for an hour without degrading |
@@ -637,7 +637,7 @@ as a pillar. The assertion was right, the scope was wrong, and the first failure
 assertion that never got to run. **A fixture that has never been run is not a fixture that passes**,
 and it costs nothing to keep the number honest by running it.
 
-### M4 in progress
+### M4 — built, not signed off
 
 **The floor now says what down it is.** `FieldStateLines` solves the line of scrimmage and the line to
 gain from a `GameSituation` and nothing else; `FieldStateOverlay` draws them on `PitchTactical`, which
@@ -678,17 +678,60 @@ Three findings from doing it, all of the same family — a picture that looks de
   player, so nobody had seen that "ring" meant a solid 2.1 m gold slab across the yard lines under the
   body it was meant to draw attention to. It is an annulus now.
 
+**The void above the far sideline is gone.** Framing at 2.5 bought a five-player group and, with it, a
+black band across the top third of both team walls: the side cameras sit 3.4 m off the turf looking
+almost level, so everything above the far sideline was the camera's clear colour. `StadiumBowlBuilder`
+sweeps a rounded rectangle — four corner arcs, with the straight sides falling out as the spans between
+them, so there is no special case for them anywhere — through a stepped cross section: low wall, ten
+raked rows, a concourse, eight upper rows, a rim. 1476 verts, 2880 triangles, three materials, no
+textures: seating is two close tones alternating down the steps, which reads as rows at forty metres
+and, unlike a generated texture, is not one more asset that has to survive a scene save. The floor
+deliberately does not see it — `FloorMask` omits `PitchStadium`, because from directly overhead a bowl
+is a ring of clutter around the one view that has to stay legible.
+
+Two of its failures are worth keeping, both of them large and both invisible as *errors*:
+
+- **It rendered near-black at any albedo**, and two rounds of brightening the materials went straight
+  past the cause. The sweep was wound outward, so every seat was lit from behind — and with two-sided
+  materials nothing looked broken; it just looked like the void it was built to replace. The fix takes
+  the cross product of the first triangle, dots it against that path point's inward direction, and
+  reverses every winding if the sign is wrong. **Measured rather than reasoned about**, since reasoning
+  about it on paper is what produced the bug.
+- **A single flat slab on top read as a dark curtain** whatever colour it was painted, and the 12 m gap
+  between apron and bowl showed the clear colour as a black strip pinned to the horizon. Both are the
+  original failure again in miniature: a large flat area with no internal detail. Upper seating rows,
+  and a skirt running back under the turf edge.
+
+**Route trails are sampled from the bake, never accumulated.** The obvious implementation appends the
+player's position every frame, and it would be wrong here three ways at once: doubled up under slow
+motion, thinned out under a frame-rate dip, and surviving a seek — so scrubbing back would leave a
+trail through places the player has not been yet. M1 bakes every route into a fixed-rate `MotionTrack`
+exactly so that position is a pure function of time, so `RouteTrail` asks it 48 times between the snap
+and now. Constant cost per frame, resolution independent of how long the play has run, and replay,
+looping, slow motion and seeking all need no special case — the same argument the sim itself rests on.
+The test that matters seeks backwards and requires the line to *shorten*; an accumulated trail passes
+every structural assertion and fails that one.
+
+Four of them: both teams on the floor, because seeing a receiver's route against the coverage is the
+whole reason to look down, and one per team wall carrying only its own side — tracing the route of
+somebody that wall has deliberately ghosted says the opposite of what the ghosting says. Tapered from
+0.35 to full width so the geometry itself says which end is *now*. The capture path has to settle both
+wall cameras before it can draw any of them, since the trails are per team while the cameras choose
+per wall, and the floor draws both.
+
 ### Next
 
-1. ~~Run the EditMode suite~~ — **309/309 green** in 2022.3.9f1. One failure found and fixed on the
-   way: see the note above on `RoomHologramTests`.
-2. **Commit.** M3.5, the four fixes above and the M3.5 switch-off are one large uncommitted change
-   set, still unlanded.
-3. **Side-screen test card on the CAVE** (§3.1). Still the only thing at the desk that cannot be
-   substituted for, and it now gates M4 sign-off.
-4. **M4** — overlays. Floor lines, per-wall dressing, per-wall jersey numbers and per-wall focus
-   rings are all in. What remains is route trails, and the side-screen test card on hardware before
-   any of it can be signed off.
+1. ~~Run the EditMode suite~~ — **334/334 green** in 2022.3.9f1, up from 309. One failure found and
+   fixed on the way: see the note above on `RoomHologramTests`.
+2. ~~Commit~~ — M3.5, its switch-off and the render-chain fixes landed, and M4 has gone in on top in
+   pieces since.
+3. **M4's build work is done**: floor state lines, per-wall dressing, per-wall jersey numbers with
+   depth separation, per-wall focus rings, the stadium bowl and route trails are all in.
+4. **Side-screen test card on the CAVE** (§3.1) — the one remaining M4 gate, and still the only thing
+   at the desk that cannot be substituted for. Twenty minutes on hardware.
+5. **Re-measure the frame budget before M7.** M2's stress test ran before the render chain worked, so
+   the number it produced was measured against a pipeline that was not drawing what it draws now —
+   and M4 has since added a bowl, six renderers per player and four line renderers.
 
 **The M3.5 figure is settled: placeholder, off by default.** It was a probe, it answered its
 question, and `IncludeRoomFigure` in `StadiumCaveBuilder` keeps it out of the built scene. The

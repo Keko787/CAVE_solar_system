@@ -62,6 +62,7 @@ namespace Stadium3D.EditorTools
             // Built after the sweep above, or the recursive pass would put the overlay on the player
             // layer and the broadcast wall would start drawing chains across the play.
             BuildFieldStateOverlay(rig.transform);
+            BuildRouteTrails(rig.transform, mats);
 
             EditorUtility.SetDirty(rig);
 
@@ -341,6 +342,54 @@ namespace Stadium3D.EditorTools
             PitchLayers.ApplyRecursively(root, PitchLayers.Tactical);
         }
 
+        /// <summary>
+        /// Route trails: both teams on the floor, and each team wall showing only its own.
+        /// </summary>
+        /// <remarks>
+        /// The floor is the tactical surface and carries one of each, because seeing a receiver's route
+        /// against the coverage is the whole reason to look down. A team wall carries only its own side's,
+        /// for the reason its bodies and numbers already follow — the opposition is ghosted there, and
+        /// tracing the route of somebody you have deliberately faded out says the opposite.
+        /// </remarks>
+        static void BuildRouteTrails(Transform parent, MarkerMaterials mats)
+        {
+            var root = new GameObject("RouteTrails");
+            root.transform.SetParent(parent, false);
+
+            Trail(root.transform, "TrailFloorHome", TeamSide.Home, mats.TrailHome, PitchLayers.Tactical);
+            Trail(root.transform, "TrailFloorAway", TeamSide.Away, mats.TrailAway, PitchLayers.Tactical);
+            Trail(root.transform, "TrailWallHome", TeamSide.Home, mats.TrailHome, PitchLayers.RightWall);
+            Trail(root.transform, "TrailWallAway", TeamSide.Away, mats.TrailAway, PitchLayers.LeftWall);
+        }
+
+        static GameObject Trail(Transform parent, string name, TeamSide side, Material material, string layer)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+
+            var line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = false;          // pitch-local, like everything the sim drives
+            line.alignment = LineAlignment.View; // reads flat from overhead and as a stroke from the side
+            line.numCornerVertices = 2;
+            line.numCapVertices = 2;
+            line.textureMode = LineTextureMode.Stretch;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.sharedMaterial = material;
+            line.positionCount = RouteTrail.Samples;
+
+            // Tapered: thin where the route began, full width at the player. The width alone says which
+            // end is now, which a line of constant thickness cannot.
+            line.widthMultiplier = 0.40f;
+            line.widthCurve = new AnimationCurve(new Keyframe(0f, 0.35f), new Keyframe(1f, 1f));
+
+            line.enabled = false;
+            go.AddComponent<RouteTrail>().Configure(side);
+
+            Stamp(go, layer);
+            return go;
+        }
+
         /// <summary>A flat strip lying across the full width of the field at one yard line.</summary>
         static GameObject Strip(Transform parent, string name, Color color)
         {
@@ -364,6 +413,7 @@ namespace Stadium3D.EditorTools
             public Material HomeNormal, HomeDimmed, HomeGhosted;
             public Material AwayNormal, AwayDimmed, AwayGhosted;
             public Material Chevron, BlobShadow, FocusRing;
+            public Material TrailHome, TrailAway;
 
             /// <summary>Shared by every focus ring in the scene — 66 renderers, one mesh.</summary>
             public Mesh RingMesh;
@@ -384,6 +434,8 @@ namespace Stadium3D.EditorTools
                     Chevron = Unlit("MarkerChevron", new Color(1f, 1f, 1f, 0.55f)),
                     BlobShadow = Unlit("MarkerBlob", new Color(0f, 0f, 0f, 0.38f)),
                     FocusRing = RingMaterial(),
+                    TrailHome = Unlit("RouteTrailHome", new Color(home.r, home.g, home.b, 0.75f)),
+                    TrailAway = Unlit("RouteTrailAway", new Color(away.r, away.g, away.b, 0.75f)),
                     RingMesh = BuildRingMesh(0.82f, 1.05f, 48),
                 };
             }

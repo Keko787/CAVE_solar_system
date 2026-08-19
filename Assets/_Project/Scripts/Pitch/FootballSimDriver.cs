@@ -165,6 +165,9 @@ namespace Stadium3D.Pitch
             else m_LeftFocus = playerId;
         }
 
+        /// <summary>The player a wall is following, or 0 before it has settled on anyone.</summary>
+        public int FocusOf(TeamSide wall) => wall == TeamSide.Home ? m_RightFocus : m_LeftFocus;
+
         /// <summary>Register the ball's view.</summary>
         public void RegisterBall(BallMarker ball) => m_Ball = ball;
 

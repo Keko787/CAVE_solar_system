@@ -77,6 +77,22 @@ namespace Stadium3D.EditorTools
             foreach (var overlay in Object.FindObjectsOfType<FieldStateOverlay>(true))
                 overlay.Apply(sim.Situation);
 
+            // Settle every camera before drawing anything that depends on where they ended up. The trails
+            // are per team, not per camera, and the floor draws both — so the floor cannot be given its
+            // content until the two wall cameras have chosen who they are following.
+            foreach (var cam in cameras) cam.TrackForPreview(sim);
+
+            int homeFocus = 0, awayFocus = 0;
+            foreach (var cam in cameras)
+            {
+                if (!(cam is TeamIsoPitchCamera iso)) continue;
+                if (iso.Side == TeamSide.Home) homeFocus = iso.SubjectPlayerId;
+                else awayFocus = iso.SubjectPlayerId;
+            }
+
+            foreach (var trail in Object.FindObjectsOfType<RouteTrail>(true))
+                trail.Apply(sim, trail.Side == TeamSide.Home ? homeFocus : awayFocus);
+
             foreach (var cam in cameras)
             {
                 cam.TrackForPreview(sim);
