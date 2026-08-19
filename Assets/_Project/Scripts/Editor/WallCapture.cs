@@ -73,6 +73,10 @@ namespace Stadium3D.EditorTools
             }
             if (ball != null) ball.Apply(sim.Ball);
 
+            // The floor overlay follows the situation, and nothing is ticking its LateUpdate in edit mode.
+            foreach (var overlay in Object.FindObjectsOfType<FieldStateOverlay>(true))
+                overlay.Apply(sim.Situation);
+
             foreach (var cam in cameras)
             {
                 cam.TrackForPreview(sim);

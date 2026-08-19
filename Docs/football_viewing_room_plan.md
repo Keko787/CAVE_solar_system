@@ -637,6 +637,27 @@ as a pillar. The assertion was right, the scope was wrong, and the first failure
 assertion that never got to run. **A fixture that has never been run is not a fixture that passes**,
 and it costs nothing to keep the number honest by running it.
 
+### M4 in progress
+
+**The floor now says what down it is.** `FieldStateLines` solves the line of scrimmage and the line to
+gain from a `GameSituation` and nothing else; `FieldStateOverlay` draws them on `PitchTactical`, which
+only the floor camera carries. Both strips are drawn at three times a painted stripe, because the floor
+frames 48.9 m across a 2.2225 m surface and a real 4-inch line arrives 4.6 mm wide.
+
+The sign convention is the reason the solve is a tested pure function rather than two lines in a
+renderer. Home drives up the yard axis and away drives down it, and getting that backwards produces a
+clean yellow line across a field on the wrong side of the ball — invisible at 1:22, and instantly
+visible to anyone who follows football. Seven assertions pin it, including one that runs both teams
+from the same spot with the same distance and requires the answers to be mirror images.
+
+**A bug the overlay work surfaced, in code that had shipped two milestones earlier.** The ball's ground
+tick is a child of the ball marker, the marker had already been moved to the ball, and the tick was
+then given the ball's field position a second time — so it sat at double its offset from midfield.
+Nothing about that looks broken: the tick still slid around the field near the play, and the error grew
+smoothly with distance from the middle, so it read as a deliberate lead indicator. It took drawing two
+*correct* lines next to it to make a 1.5 m yellow square 6 m from the ball look wrong. Fixed, and pinned
+by a test that measures where the tick lands relative to the ball rather than trusting one number.
+
 ### Next
 
 1. ~~Run the EditMode suite~~ — **309/309 green** in 2022.3.9f1. One failure found and fixed on the
@@ -645,9 +666,8 @@ and it costs nothing to keep the number honest by running it.
    set, still unlanded.
 3. **Side-screen test card on the CAVE** (§3.1). Still the only thing at the desk that cannot be
    substituted for, and it now gates M4 sign-off.
-4. **M4** — overlays. The layer set already reserves `PitchTactical`, `PitchRightWall` and
-   `PitchLeftWall`; the first job is the per-wall dressing that lets `Players` come out of both side
-   masks.
+4. **M4** — overlays. The floor lines are in (above). What remains is the per-wall dressing that
+   lets `Players` come out of both side masks, per-wall focus rings, and route trails.
 
 **The M3.5 figure is settled: placeholder, off by default.** It was a probe, it answered its
 question, and `IncludeRoomFigure` in `StadiumCaveBuilder` keeps it out of the built scene. The

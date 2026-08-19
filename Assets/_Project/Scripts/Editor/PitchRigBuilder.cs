@@ -64,6 +64,10 @@ namespace Stadium3D.EditorTools
                     text.gameObject.layer = numberLayer;
             }
 
+            // Built after the sweep above, or the recursive pass would put the overlay on the player
+            // layer and the broadcast wall would start drawing chains across the play.
+            BuildFieldStateOverlay(rig.transform);
+
             EditorUtility.SetDirty(rig);
 
             Debug.Log($"[Stadium3D] Pitch rig ready: {drive.Roster.All.Count} markers, {drive.Plays.Count} plays. " +
@@ -211,6 +215,48 @@ namespace Stadium3D.EditorTools
         }
 
         // ── the shared material set ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The two broadcast lines on the turf: where the ball is, and where the offence has to reach.
+        /// </summary>
+        /// <remarks>
+        /// Drawn at three times a painted stripe. The floor frames 48.9 m across a 2.2225 m surface, so a
+        /// real 4-inch line arrives about 4.6 mm wide and is the first thing lost to projector softness —
+        /// television widens these lines for the same reason. Three times 4 inches is a clean foot.
+        /// </remarks>
+        static void BuildFieldStateOverlay(Transform parent)
+        {
+            var root = new GameObject("FieldStateOverlay");
+            root.transform.SetParent(parent, false);
+
+            var scrimmage = Strip(root.transform, "ScrimmageLine",
+                                  new Color(0.30f, 0.55f, 1f, 0.80f));
+            var lineToGain = Strip(root.transform, "LineToGain",
+                                   new Color(1f, 0.85f, 0.05f, 0.92f));
+
+            root.AddComponent<FieldStateOverlay>()
+                .Configure(scrimmage.transform, lineToGain.transform);
+
+            PitchLayers.ApplyRecursively(root, PitchLayers.Tactical);
+        }
+
+        /// <summary>A flat strip lying across the full width of the field at one yard line.</summary>
+        static GameObject Strip(Transform parent, string name, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+
+            // +90 about X lays a Quad flat with its normal up, which is the one orientation the top-down
+            // camera can see. The floor camera itself had this wrong once, as Euler(90, 90, 0).
+            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            go.transform.localScale = new Vector3(FieldMarkings.LineWidth * 3f,
+                                                  FieldMarkings.WidthMeters, 1f);
+
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.GetComponent<Renderer>().sharedMaterial = MarkerMaterials.Unlit(name, color);
+            return go;
+        }
 
         class MarkerMaterials
         {

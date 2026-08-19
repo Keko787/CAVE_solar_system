@@ -43,7 +43,13 @@ namespace Stadium3D.Pitch
             {
                 // Sits on the turf under the ball, never on it: at the paint's Y a tick would z-fight the
                 // yard lines it is most often directly over.
-                m_GroundTick.localPosition = new Vector3(ball.Position.x, FieldMarkings.OverlayY, ball.Position.z);
+                //
+                // Only the height is written. The tick is a CHILD of this marker and this marker has
+                // already moved to the ball, so writing the field position in again applied it twice and
+                // put the tick at double its offset from midfield. That is not a wrong-looking bug: the
+                // tick still slid around the field near the play, and the error grew with distance from
+                // the middle, so it read as a deliberate lead indicator rather than as a fault.
+                m_GroundTick.localPosition = new Vector3(0f, FieldMarkings.OverlayY - ball.Position.y, 0f);
                 m_GroundTick.gameObject.SetActive(ball.Carriage != BallCarriage.Dead);
             }
 
