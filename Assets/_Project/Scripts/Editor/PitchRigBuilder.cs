@@ -37,6 +37,7 @@ namespace Stadium3D.EditorTools
             var world = GameObject.Find("PitchWorld") ?? new GameObject("PitchWorld");
 
             FootballFieldBuilder.BuildFootballField();
+            StadiumBowlBuilder.BuildBowl();
 
             var existing = world.transform.Find(RigName);
             if (existing != null) Object.DestroyImmediate(existing.gameObject);

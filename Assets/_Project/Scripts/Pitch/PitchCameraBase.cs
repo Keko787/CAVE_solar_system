@@ -124,7 +124,10 @@ namespace Stadium3D.Pitch
             m_Camera.targetTexture = m_View;      // also what stops MiddleVR disabling it at startup
             m_Camera.cullingMask = CullingMask();
             m_Camera.clearFlags = CameraClearFlags.SolidColor;
-            m_Camera.backgroundColor = new Color(0.04f, 0.05f, 0.06f);
+            // Night sky, not void. Near-black was fine while nothing sat above the horizon; once the bowl
+            // arrived, the gap between its rim and the top of frame wanted to read as sky rather than as
+            // the absence of geometry. The floor never sees any of it - it looks straight down.
+            m_Camera.backgroundColor = new Color(0.095f, 0.115f, 0.165f);
             m_Camera.allowHDR = false;            // the shipping URP asset has HDR off
             m_Camera.nearClipPlane = 0.3f;
             m_Camera.farClipPlane = 400f;
