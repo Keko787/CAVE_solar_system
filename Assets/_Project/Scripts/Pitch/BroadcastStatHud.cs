@@ -56,16 +56,24 @@ namespace Stadium3D.Pitch
         /// Possession as a mark on the score rather than its own field: it is one bit, it is always about
         /// one of exactly two names already on screen, and a separate "BAY ball" label out in the periphery
         /// is a third thing to find in the 64% of the wall nobody looks at.
+        ///
+        /// <para><b>The points come from the box score, not from the situation.</b>
+        /// <see cref="GameSituation"/> is the state <em>at the snap</em>, so a scoreboard driven from it
+        /// lags a play forever: this drive ends on a 62-yard touchdown and the wall would still read 10–14
+        /// while the receiver was in the end zone, and would never reach 16 at all. The box score updates
+        /// once the play is over, which is when a real scoreboard changes. Mid-drive the two agree exactly,
+        /// which is why this shipped and why an acceptance test that plays the drive out is what found
+        /// it.</para>
         /// </remarks>
         static string Score(FootballSim sim)
         {
-            var situation = sim.Situation;
+            var box = sim.Score;
             var roster = sim.Roster;
 
-            string home = $"{roster.HomeAbbreviation} {situation.HomeScore}";
-            string away = $"{roster.AwayAbbreviation} {situation.AwayScore}";
+            string home = $"{roster.HomeAbbreviation} {box.Home.Points}";
+            string away = $"{roster.AwayAbbreviation} {box.Away.Points}";
 
-            return situation.Possession == TeamSide.Home
+            return sim.Situation.Possession == TeamSide.Home
                 ? $"• {home}   {away}"
                 : $"{home}   • {away}";
         }

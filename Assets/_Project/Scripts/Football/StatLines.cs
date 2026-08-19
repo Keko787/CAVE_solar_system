@@ -12,15 +12,16 @@ namespace Stadium3D.Football
     /// <see cref="LiveTelemetry"/> already makes about units: the view receives finished strings and does no
     /// arithmetic, so a stray conversion cannot creep into a label.
     ///
-    /// <para><b>An untouched player reads as a dash.</b> A receiver who has not been thrown at is not
+    /// <para><b>An untouched player gets no line at all.</b> A receiver who has not been thrown at is not
     /// "0 rec, 0 yds" — that is a bad game, and this is a player who has not been involved. The drive puts
     /// twenty-two men on the field and most of them never touch the ball, so this is the common case, not
-    /// the edge one.</para>
+    /// the edge one. It was a dash first, which held the card's shape and read on a 2.4 m wall as a stray
+    /// mark under the name; a card with a gap in it says "nothing yet" more clearly than a symbol does.</para>
     /// </remarks>
     public static class StatLines
     {
-        /// <summary>Shown where a player has no stats worth a line yet.</summary>
-        public const string Empty = "—";
+        /// <summary>What a player with no stats worth a line gets: nothing.</summary>
+        public const string Empty = "";
 
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 

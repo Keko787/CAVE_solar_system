@@ -72,20 +72,21 @@ namespace Stadium3D.Football.Tests
         }
 
         [Test]
-        public void APlayerWhoHasNotTouchedTheBallGetsADashRatherThanZeroes()
+        public void APlayerWhoHasNotTouchedTheBallGetsNothingRatherThanZeroes()
         {
             foreach (var position in new[] { PlayerPosition.Quarterback, PlayerPosition.WideReceiver,
                                              PlayerPosition.Cornerback, PlayerPosition.OffensiveLine })
             {
                 string line = StatLines.ForPosition(Player(position), default);
 
-                Assert.That(line, Is.EqualTo(StatLines.Empty),
-                    $"{position} with an empty line should read as uninvolved, not as a bad game");
+                Assert.That(line, Is.EqualTo(StatLines.Empty), $"{position} should read as uninvolved");
+                Assert.That(line, Is.Empty,
+                    $"{position} with an empty line leaves a gap in the card, not a mark on the wall");
             }
         }
 
         [Test]
-        public void ADefenderWithASackGetsTheSackRatherThanADash()
+        public void ADefenderWithASackGetsTheSackRatherThanNothing()
         {
             var one = StatLines.ForPosition(Player(PlayerPosition.DefensiveLine), new PlayerStats { Sacks = 1 });
             var two = StatLines.ForPosition(Player(PlayerPosition.Linebacker), new PlayerStats { Sacks = 2 });
