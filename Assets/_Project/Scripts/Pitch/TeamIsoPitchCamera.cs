@@ -66,6 +66,13 @@ namespace Stadium3D.Pitch
         public TeamSide Side => m_Side;
 
         /// <summary>
+        /// The player this wall is actually watching this frame — the focused one, or whoever it fell back
+        /// to. Distinct from <see cref="FocusedPlayerId"/>, which is a request and is zero until something
+        /// makes one.
+        /// </summary>
+        public int SubjectPlayerId { get; private set; }
+
+        /// <summary>
         /// Assign the wall this rig serves. Builder-only, and it has to run before <see cref="Awake"/>.
         /// </summary>
         /// <remarks>
@@ -87,6 +94,11 @@ namespace Stadium3D.Pitch
         protected override void Track(FootballSim sim)
         {
             Vector3 subject = ResolveSubject(sim);
+
+            // The ring follows whoever the framing settled on, including the fallback. A wall that frames
+            // one player and rings another is worse than a wall with no ring at all.
+            var driver = FootballSimDriver.Instance;
+            if (driver != null) driver.SetWallFocus(m_Side, SubjectPlayerId);
 
             m_Aim = Warm && Time.deltaTime > 0f
                 ? Vector3.Lerp(m_Aim, subject, Ease(m_AimSharpness))
@@ -114,7 +126,10 @@ namespace Stadium3D.Pitch
             {
                 for (int i = 0; i < frames.Count; i++)
                     if (frames[i].PlayerId == FocusedPlayerId)
+                    {
+                        SubjectPlayerId = FocusedPlayerId;
                         return frames[i].Position;
+                    }
             }
 
             // No focus yet: follow whoever on this team is nearest the ball, which is almost always the
@@ -122,13 +137,16 @@ namespace Stadium3D.Pitch
             Vector3 ball = sim.Ball.Position;
             float best = float.MaxValue;
             Vector3 chosen = ball;
+            int chosenId = 0;
 
             for (int i = 0; i < frames.Count; i++)
             {
                 if (frames[i].Side != m_Side) continue;
                 float d = (frames[i].Position - ball).sqrMagnitude;
-                if (d < best) { best = d; chosen = frames[i].Position; }
+                if (d < best) { best = d; chosen = frames[i].Position; chosenId = frames[i].PlayerId; }
             }
+
+            SubjectPlayerId = chosenId;
             return chosen;
         }
     }

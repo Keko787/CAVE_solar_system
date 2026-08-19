@@ -86,6 +86,11 @@ namespace Stadium3D.EditorTools
                 // with the room about where the numbers are.
                 JerseyNumbers.Orient(cam.Camera, markers);
 
+                // The driver is what carries focus to the markers in play mode, and it is not running.
+                if (cam is TeamIsoPitchCamera wall)
+                    foreach (var marker in markers)
+                        marker.SetWallFocus(wall.Side, marker.PlayerId == wall.SubjectPlayerId);
+
                 cam.Camera.Render();
                 Save(cam.View, Path.Combine(outDir, $"{label}-{Sanitize(cam.name)}.png"));
 

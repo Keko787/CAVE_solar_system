@@ -69,6 +69,12 @@ namespace Stadium3D.Pitch
         [SerializeField, Tooltip("Ring drawn when a wall is following this player.")]
         Renderer m_FocusRing;
 
+        [SerializeField, Tooltip("Focus ring the home wall sees. On PitchRightWall.")]
+        Renderer m_FocusRingRight;
+
+        [SerializeField, Tooltip("Focus ring the away wall sees. On PitchLeftWall.")]
+        Renderer m_FocusRingLeft;
+
         [SerializeField, Tooltip("Jersey number, billboarded toward the camera that is looking.")]
         TextMesh m_Number;
 
@@ -202,6 +208,31 @@ namespace Stadium3D.Pitch
                 case MarkerEmphasis.Dimmed:  return home ? m_HomeDimmed : m_AwayDimmed;
                 default:                     return home ? m_HomeNormal : m_AwayNormal;
             }
+        }
+
+        /// <summary>
+        /// Light or clear this player's ring on <b>one wall</b>, without touching the other.
+        /// </summary>
+        /// <remarks>
+        /// Focus is per wall, not per player: the two team walls follow different people at the same time,
+        /// and in M6 the wand will move each independently. One ring shared between them could only ever
+        /// show one of those answers, and would show it to the wall that did not ask.
+        ///
+        /// <para>Deliberately separate from <see cref="SetEmphasis"/>. Emphasis is a property of the player
+        /// — what everyone thinks of them — while this is a property of a viewer. Folding them together is
+        /// what makes "focused" mean two different things and one of them silently win.</para>
+        /// </remarks>
+        public void SetWallFocus(TeamSide wall, bool focused)
+        {
+            var ring = wall == TeamSide.Home ? m_FocusRingRight : m_FocusRingLeft;
+            if (ring != null && ring.enabled != focused) ring.enabled = focused;
+        }
+
+        /// <summary>Wire the two per-wall rings from a builder.</summary>
+        public void ConfigureWallRings(Renderer right, Renderer left)
+        {
+            m_FocusRingRight = right;
+            m_FocusRingLeft = left;
         }
 
         /// <summary>Wire the parts up from a builder, so the prefab does not have to be hand-assembled.</summary>

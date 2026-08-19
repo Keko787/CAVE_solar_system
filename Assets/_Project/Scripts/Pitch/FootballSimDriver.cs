@@ -52,6 +52,9 @@ namespace Stadium3D.Pitch
         readonly List<PlayerMarker> m_Markers = new List<PlayerMarker>();
         BallMarker m_Ball;
 
+        int m_RightFocus;
+        int m_LeftFocus;
+
         /// <summary>The running sim, or null before <see cref="Awake"/>.</summary>
         public FootballSim Sim => m_Sim;
 
@@ -136,6 +139,30 @@ namespace Stadium3D.Pitch
         public void Register(int playerId, IPlayerMarkerView view)
         {
             if (view != null) m_Views[playerId] = view;
+        }
+
+        /// <summary>
+        /// Record which player a wall is following, and move that wall's ring to them.
+        /// </summary>
+        /// <remarks>
+        /// Two markers change per wall at most, and only when the answer actually changes — a wall
+        /// following the same receiver for a whole route does no work at all. The alternative, sweeping
+        /// twenty-two markers twice a frame to set a flag that is nearly always already right, is the kind
+        /// of cost that never shows up in a profile as one line and never goes away either.
+        /// </remarks>
+        public void SetWallFocus(TeamSide wall, int playerId)
+        {
+            int previous = wall == TeamSide.Home ? m_RightFocus : m_LeftFocus;
+            if (previous == playerId) return;
+
+            if (previous != 0 && m_Views.TryGetValue(previous, out var before) && before is PlayerMarker was)
+                was.SetWallFocus(wall, false);
+
+            if (playerId != 0 && m_Views.TryGetValue(playerId, out var after) && after is PlayerMarker now)
+                now.SetWallFocus(wall, true);
+
+            if (wall == TeamSide.Home) m_RightFocus = playerId;
+            else m_LeftFocus = playerId;
         }
 
         /// <summary>Register the ball's view.</summary>

@@ -658,6 +658,26 @@ smoothly with distance from the middle, so it read as a deliberate lead indicato
 *correct* lines next to it to make a 1.5 m yellow square 6 m from the ball look wrong. Fixed, and pinned
 by a test that measures where the tick lands relative to the ball rather than trusting one number.
 
+**Per-wall identity is complete.** Each player carries three bodies, three focus rings and one number,
+and every team wall sees exactly its own set: own team lit, opposition ghosted to alpha 0.28, its own
+eleven numbered, and a gold annulus under the player that wall is following. `Players` and
+`PitchNumbers` are both out of the two side masks. The ball, the chevrons and the blob shadows moved
+to `PitchShared`, which now means *what every pitch camera renders identically* rather than "scenery".
+
+Three findings from doing it, all of the same family — a picture that looks deliberate and is wrong:
+
+- **A lift proportional to depth separates nothing.** Screen height goes as `(worldY − eyeY) / depth`,
+  so `k · depth` contributes a flat `k` to near and far alike. It has to be measured against a
+  reference — and not the mean depth, and not the nearest player on the field, but the nearest player
+  *in shot*. Each wrong reference produced numbers that had visibly moved and were no less stacked.
+- **The per-camera number pass gated on the `Players` layer**, which the side walls stopped carrying
+  when they were dressed — so it skipped precisely the two walls that draw numbers. The capture tool
+  hid it by calling the marker directly; only Play mode would have been wrong. Both paths now go
+  through `JerseyNumbers.Orient`.
+- **The focus ring was a filled quad.** It had never been visible, because nothing had ever focused a
+  player, so nobody had seen that "ring" meant a solid 2.1 m gold slab across the yard lines under the
+  body it was meant to draw attention to. It is an annulus now.
+
 ### Next
 
 1. ~~Run the EditMode suite~~ — **309/309 green** in 2022.3.9f1. One failure found and fixed on the
@@ -666,8 +686,9 @@ by a test that measures where the tick lands relative to the ball rather than tr
    set, still unlanded.
 3. **Side-screen test card on the CAVE** (§3.1). Still the only thing at the desk that cannot be
    substituted for, and it now gates M4 sign-off.
-4. **M4** — overlays. The floor lines are in (above). What remains is the per-wall dressing that
-   lets `Players` come out of both side masks, per-wall focus rings, and route trails.
+4. **M4** — overlays. Floor lines, per-wall dressing, per-wall jersey numbers and per-wall focus
+   rings are all in. What remains is route trails, and the side-screen test card on hardware before
+   any of it can be signed off.
 
 **The M3.5 figure is settled: placeholder, off by default.** It was a probe, it answered its
 question, and `IncludeRoomFigure` in `StadiumCaveBuilder` keeps it out of the built scene. The

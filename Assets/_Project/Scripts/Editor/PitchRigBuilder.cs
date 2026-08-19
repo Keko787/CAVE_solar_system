@@ -145,9 +145,15 @@ namespace Stadium3D.EditorTools
             Stamp(chevron.gameObject, PitchLayers.Shared);
             Stamp(blob.gameObject, PitchLayers.Shared);
 
-            var ring = Quad("FocusRing", go.transform,
-                new Vector3(0f, FieldMarkings.OverlayY + 0.002f, 0f), new Vector3(2.1f, 2.1f, 1f), mats.FocusRing);
-            ring.enabled = false;
+            var ring = Ring("FocusRing", go.transform, mats);
+
+            // One ring per team wall. No camera sees more than one of the three, so they can share a
+            // height without fighting for it.
+            var ringRight = Ring("FocusRingRight", go.transform, mats);
+            Stamp(ringRight.gameObject, PitchLayers.RightWall);
+
+            var ringLeft = Ring("FocusRingLeft", go.transform, mats);
+            Stamp(ringLeft.gameObject, PitchLayers.LeftWall);
 
             // Legacy TextMesh rather than TMP: one draw, no atlas dependency, and the number only has to
             // read from the team walls where the player is close to life-size.
@@ -172,6 +178,7 @@ namespace Stadium3D.EditorTools
 
             var marker = go.AddComponent<PlayerMarker>();
             marker.Configure(body.GetComponent<Renderer>(), chevron, blob, ring, number);
+            marker.ConfigureWallRings(ringRight, ringLeft);
             marker.ConfigureMaterials(mats.HomeNormal, mats.HomeDimmed, mats.HomeGhosted,
                                       mats.AwayNormal, mats.AwayDimmed, mats.AwayGhosted);
             marker.Bind(identity);
@@ -207,6 +214,64 @@ namespace Stadium3D.EditorTools
 
             var ball = go.AddComponent<BallMarker>();
             ball.Configure(body.transform, tick.transform, null);
+        }
+
+        /// <summary>
+        /// A focus ring lying flat on the turf, disabled until some wall claims this player.
+        /// </summary>
+        /// <remarks>
+        /// An annulus rather than a quad. The original was a filled 2.1 m square, which never showed until
+        /// something actually focused a player — and then arrived as a solid gold slab covering the yard
+        /// lines under the very body it was supposed to draw attention to. A highlight that hides the
+        /// ground it highlights is worse than none.
+        /// </remarks>
+        static Renderer Ring(string name, Transform parent, MarkerMaterials mats)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0f, FieldMarkings.OverlayY + 0.002f, 0f);
+
+            go.AddComponent<MeshFilter>().sharedMesh = mats.RingMesh;
+
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = mats.FocusRing;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.enabled = false;
+            return r;
+        }
+
+        /// <summary>
+        /// A flat ring in the XZ plane. Built once and shared by all sixty-six rings in the scene.
+        /// </summary>
+        static Mesh BuildRingMesh(float inner, float outer, int segments)
+        {
+            var verts = new Vector3[segments * 2];
+            var tris = new int[segments * 6];
+
+            for (int i = 0; i < segments; i++)
+            {
+                float a = i / (float)segments * Mathf.PI * 2f;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                verts[i * 2] = dir * inner;
+                verts[i * 2 + 1] = dir * outer;
+            }
+
+            for (int i = 0; i < segments; i++)
+            {
+                int a = i * 2, b = a + 1;
+                int c = (i + 1) % segments * 2, d = c + 1;
+
+                tris[i * 6 + 0] = a; tris[i * 6 + 1] = b; tris[i * 6 + 2] = d;
+                tris[i * 6 + 3] = a; tris[i * 6 + 4] = d; tris[i * 6 + 5] = c;
+            }
+
+            var mesh = new Mesh { name = "FocusRingMesh" };
+            mesh.vertices = verts;
+            mesh.triangles = tris;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         /// <summary>One stylized body. Every copy shares these numbers so they cannot drift apart.</summary>
@@ -299,6 +364,9 @@ namespace Stadium3D.EditorTools
             public Material AwayNormal, AwayDimmed, AwayGhosted;
             public Material Chevron, BlobShadow, FocusRing;
 
+            /// <summary>Shared by every focus ring in the scene — 66 renderers, one mesh.</summary>
+            public Mesh RingMesh;
+
             public static MarkerMaterials Create()
             {
                 var home = new Color(0.85f, 0.62f, 0.13f);   // Ironhawks gold
@@ -314,8 +382,25 @@ namespace Stadium3D.EditorTools
                     AwayGhosted = Unlit("MarkerAwayGhost", new Color(away.r, away.g, away.b, 0.28f)),
                     Chevron = Unlit("MarkerChevron", new Color(1f, 1f, 1f, 0.55f)),
                     BlobShadow = Unlit("MarkerBlob", new Color(0f, 0f, 0f, 0.38f)),
-                    FocusRing = Unlit("MarkerFocusRing", new Color(1f, 0.78f, 0.22f, 0.9f)),
+                    FocusRing = RingMaterial(),
+                    RingMesh = BuildRingMesh(0.82f, 1.05f, 48),
                 };
+            }
+
+            /// <summary>
+            /// The focus ring's material, drawn on both faces.
+            /// </summary>
+            /// <remarks>
+            /// Two-sided because the ring is generated geometry lying flat on the turf, and a winding order
+            /// worked out on paper is exactly the kind of thing that is right until someone regenerates the
+            /// mesh. The failure — an invisible highlight — looks identical to focus not working at all.
+            /// </remarks>
+            static Material RingMaterial()
+            {
+                var m = Unlit("MarkerFocusRing", new Color(1f, 0.78f, 0.22f, 0.9f));
+                if (m.HasProperty("_Cull"))
+                    m.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+                return m;
             }
 
             public static Material Lit(string name, Color color)
