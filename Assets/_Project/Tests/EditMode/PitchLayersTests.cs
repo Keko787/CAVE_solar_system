@@ -45,18 +45,54 @@ namespace Stadium3D.Football.Tests
         [Test]
         public void EveryWallCamera_SeesTheFieldAndSomeBodies()
         {
-            // The assertion that would have caught the black team walls.
-            foreach (var (label, mask) in new[]
+            // The assertion that would have caught the black team walls. Which layer counts as "bodies" is
+            // per-surface now: the broadcast wall and the floor draw the undressed marker, each team wall
+            // draws its own dressed copy. Asserting Players everywhere would now fail for the wrong reason.
+            foreach (var (label, mask, bodies) in new[]
                      {
-                         ("broadcast", PitchLayers.BroadcastMask),
-                         ("right wall", PitchLayers.RightWallMask),
-                         ("left wall", PitchLayers.LeftWallMask),
-                         ("floor", PitchLayers.FloorMask),
+                         ("broadcast", PitchLayers.BroadcastMask, PitchLayers.Players),
+                         ("right wall", PitchLayers.RightWallMask, PitchLayers.RightWall),
+                         ("left wall", PitchLayers.LeftWallMask, PitchLayers.LeftWall),
+                         ("floor", PitchLayers.FloorMask, PitchLayers.Players),
                      })
             {
-                Assert.That(Has(mask, PitchLayers.Shared), Is.True, $"{label} must see the field");
-                Assert.That(Has(mask, PitchLayers.Players), Is.True, $"{label} must see players");
+                Assert.That(Has(mask, PitchLayers.Shared), Is.True,
+                    $"{label} must see the field — and the ball and chevrons, which live there too");
+                Assert.That(Has(mask, bodies), Is.True, $"{label} must see bodies");
             }
+        }
+
+        [Test]
+        public void TeamWalls_DoNotAlsoSeeTheUndressedBody()
+        {
+            // Both bodies stand at the same spot. A fully lit capsule drawn on top of a ghosted one is
+            // just a fully lit capsule, so leaving Players in these masks silently undoes the ghosting —
+            // and the wall still looks perfectly reasonable, which is what makes it worth a test.
+            Assert.That(Has(PitchLayers.RightWallMask, PitchLayers.Players), Is.False);
+            Assert.That(Has(PitchLayers.LeftWallMask, PitchLayers.Players), Is.False);
+        }
+
+        [Test]
+        public void ApplyToUnassigned_LeavesDeliberatePlacementAlone()
+        {
+            var root = new GameObject("root");
+            try
+            {
+                var placed = new GameObject("placed");
+                placed.transform.SetParent(root.transform, false);
+                placed.layer = LayerMask.NameToLayer(PitchLayers.Numbers);
+
+                var untouched = new GameObject("untouched");
+                untouched.transform.SetParent(root.transform, false);
+
+                PitchLayers.ApplyToUnassigned(root, PitchLayers.Players);
+
+                Assert.That(placed.layer, Is.EqualTo(LayerMask.NameToLayer(PitchLayers.Numbers)),
+                    "the sweep must not undo a layer the builder chose on purpose");
+                Assert.That(untouched.layer, Is.EqualTo(LayerMask.NameToLayer(PitchLayers.Players)),
+                    "anything left on the default layer is exactly what the sweep is for");
+            }
+            finally { Object.DestroyImmediate(root); }
         }
 
         [Test]

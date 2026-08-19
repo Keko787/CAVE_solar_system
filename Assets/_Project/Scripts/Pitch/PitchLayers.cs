@@ -18,7 +18,17 @@ namespace Stadium3D.Pitch
     /// </remarks>
     public static class PitchLayers
     {
-        /// <summary>Turf, paint, numbers, goalposts, pylons, apron. Every pitch camera sees it.</summary>
+        /// <summary>
+        /// Everything every pitch camera renders <b>identically</b>: turf, paint, numbers, goalposts,
+        /// pylons, apron — and the ball, the facing chevrons and the blob shadows.
+        /// </summary>
+        /// <remarks>
+        /// The three dynamic members look out of place beside the scenery until you ask the question this
+        /// layer actually answers, which is not "is it static" but "does every wall show the same thing".
+        /// A chevron and a shadow are neutral, and the ball is the one object every viewer is tracking, so
+        /// none of them wants a per-wall variant. Putting them here is also what lets <see cref="Players"/>
+        /// come out of the two side-wall masks without the team walls losing the ball.
+        /// </remarks>
         public const string Shared = "PitchShared";
 
         /// <summary>Full-colour un-dimmed player markers. Broadcast and floor only.</summary>
@@ -80,16 +90,20 @@ namespace Stadium3D.Pitch
 
         /// <summary>The home-team isolation camera on the right wall.</summary>
         /// <remarks>
-        /// <see cref="Players"/> is included <em>as well as</em> <see cref="RightWall"/> because the per-wall
-        /// dressing — own team lit, opponents ghosted — is M4's work and nothing lives on those layers yet.
-        /// Without it a side wall renders turf and no bodies, which is what it did the first time this was
-        /// built. When M4 adds the per-player dressing renderers, drop <see cref="Players"/> from these two
-        /// masks so each wall shows its own version of a player rather than the undressed one.
+        /// <see cref="Players"/> is deliberately <b>absent</b>. Each player carries a second body renderer
+        /// on <see cref="RightWall"/> whose material was fixed at build time — own team lit, opponents
+        /// ghosted — and if the undressed body on <see cref="Players"/> were visible here as well, both
+        /// would draw at the same place and the ghosting would be buried under a fully lit capsule.
+        ///
+        /// <para>Two renderers rather than one material swapped per camera: both side walls render the
+        /// same frame, so a shared material cannot be lit for one and ghosted for the other, and swapping
+        /// in <c>onPreCull</c> breaks the SRP batcher this project depends on. The cost is 44 extra
+        /// renderers and no per-frame work at all.</para>
         /// </remarks>
-        public static int RightWallMask => Mask(Shared, Players, RightWall, Stadium, Numbers);
+        public static int RightWallMask => Mask(Shared, RightWall, Stadium, Numbers);
 
         /// <summary>The away-team isolation camera on the left wall. See <see cref="RightWallMask"/>.</summary>
-        public static int LeftWallMask => Mask(Shared, Players, LeftWall, Stadium, Numbers);
+        public static int LeftWallMask => Mask(Shared, LeftWall, Stadium, Numbers);
 
         /// <summary>The floor's top-down tactical camera. No stadium bowl — it would only occlude.</summary>
         public static int FloorMask => Mask(Shared, Players, Tactical);
@@ -111,6 +125,29 @@ namespace Stadium3D.Pitch
                     Debug.LogWarning($"[Stadium3D] Layer \"{names[i]}\" is not defined in Tags and Layers.");
             }
             return mask;
+        }
+
+        /// <summary>
+        /// Set a layer on everything under <paramref name="root"/> that is still on the default layer.
+        /// </summary>
+        /// <remarks>
+        /// The catch-all for parts a builder did not place deliberately, without undoing the ones it did.
+        /// <see cref="ApplyRecursively"/> stamps everything, which meant every part needing its own layer —
+        /// the jersey numbers, and now two dressed bodies and the ball — had to be stamped a second time
+        /// after the sweep, in a different method, and stayed correct only as long as nobody forgot.
+        /// Skipping anything already assigned makes the builder's own choice the one that survives.
+        /// </remarks>
+        public static void ApplyToUnassigned(GameObject root, string layerName)
+        {
+            int layer = LayerMask.NameToLayer(layerName);
+            if (root == null || layer < 0) return;
+
+            var children = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (children[i].gameObject.layer == 0)
+                    children[i].gameObject.layer = layer;
+            }
         }
 
         /// <summary>Set a layer on an object and everything under it.</summary>

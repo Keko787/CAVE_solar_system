@@ -53,16 +53,10 @@ namespace Stadium3D.EditorTools
 
             BuildBall(rig.transform);
 
-            PitchLayers.ApplyRecursively(rig, PitchLayers.Players);
-
-            // Re-stamp the jersey numbers after the sweep: they belong to the team walls alone, and the
-            // recursive pass above would otherwise put them back on the shared player layer.
-            int numberLayer = LayerMask.NameToLayer(PitchLayers.Numbers);
-            if (numberLayer >= 0)
-            {
-                foreach (var text in rig.GetComponentsInChildren<TextMesh>(true))
-                    text.gameObject.layer = numberLayer;
-            }
+            // Catch-all for the parts nobody placed deliberately. Anything the builders above stamped
+            // themselves — the numbers, the two dressed bodies, the chevrons, the shadows, the ball — keeps
+            // what it was given, so there is no second pass to forget.
+            PitchLayers.ApplyToUnassigned(rig, PitchLayers.Players);
 
             // Built after the sweep above, or the recursive pass would put the overlay on the player
             // layer and the broadcast wall would start drawing chains across the play.
@@ -124,19 +118,32 @@ namespace Stadium3D.EditorTools
             var go = new GameObject($"#{identity.Number} {identity.Name}");
             go.transform.SetParent(parent, false);
 
-            // Capsule body, 1.85 m tall, sunk so its base sits on the turf.
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "Body";
-            body.transform.SetParent(go.transform, false);
-            body.transform.localPosition = new Vector3(0f, 0.925f, 0f);
-            body.transform.localScale = new Vector3(0.62f, 0.925f, 0.62f);
-            Object.DestroyImmediate(body.GetComponent<Collider>());
+            bool home = identity.Side == TeamSide.Home;
+
+            // Three bodies, same geometry, one per kind of surface that needs its own version of a player.
+            // The broadcast wall and the floor want everyone in full colour; each team wall wants its own
+            // side lit and the opposition ghosted back. Both team walls render the same frame, so this
+            // cannot be one renderer with a material chosen per camera — and swapping materials in
+            // onPreCull would break the SRP batcher. Fixed materials, no per-frame work.
+            var body = Body(go.transform, "Body", home ? mats.HomeNormal : mats.AwayNormal);
+
+            var bodyRight = Body(go.transform, "BodyRight", home ? mats.HomeNormal : mats.AwayGhosted);
+            var bodyLeft = Body(go.transform, "BodyLeft", home ? mats.HomeGhosted : mats.AwayNormal);
+
+            Stamp(bodyRight, PitchLayers.RightWall);
+            Stamp(bodyLeft, PitchLayers.LeftWall);
 
             var chevron = Quad("Chevron", go.transform,
                 new Vector3(0f, FieldMarkings.OverlayY, 0.85f), new Vector3(0.7f, 1.1f, 1f), mats.Chevron);
 
             var blob = Quad("BlobShadow", go.transform,
                 new Vector3(0f, FieldMarkings.OverlayY - 0.002f, 0f), new Vector3(1.15f, 1.15f, 1f), mats.BlobShadow);
+
+            // Neither of these wants a per-wall variant — a facing arrow and a shadow read the same to
+            // everyone — so they move to the shared layer rather than growing a copy per surface. Without
+            // this they would vanish from both team walls the moment Players left those masks.
+            Stamp(chevron.gameObject, PitchLayers.Shared);
+            Stamp(blob.gameObject, PitchLayers.Shared);
 
             var ring = Quad("FocusRing", go.transform,
                 new Vector3(0f, FieldMarkings.OverlayY + 0.002f, 0f), new Vector3(2.1f, 2.1f, 1f), mats.FocusRing);
@@ -190,11 +197,38 @@ namespace Stadium3D.EditorTools
             body.GetComponent<Renderer>().sharedMaterial =
                 MarkerMaterials.Lit("BallMat", new Color(0.86f, 0.55f, 0.22f));
 
+            // Shared, not Players: the team walls stopped carrying Players when the dressed bodies arrived,
+            // and a wall following a receiver with no ball in the picture is worse than no wall at all.
+            Stamp(body, PitchLayers.Shared);
+
             var tick = Quad("GroundTick", go.transform, Vector3.zero, new Vector3(1.2f, 1.2f, 1f),
                             MarkerMaterials.Unlit("BallTickMat", new Color(1f, 0.9f, 0.25f, 0.85f)));
 
             var ball = go.AddComponent<BallMarker>();
             ball.Configure(body.transform, tick.transform, null);
+        }
+
+        /// <summary>One stylized body. Every copy shares these numbers so they cannot drift apart.</summary>
+        static GameObject Body(Transform parent, string name, Material material)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+
+            // 1.85 m tall, sunk so the base sits on the turf.
+            go.transform.localPosition = new Vector3(0f, 0.925f, 0f);
+            go.transform.localScale = new Vector3(0.62f, 0.925f, 0.62f);
+
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.GetComponent<Renderer>().sharedMaterial = material;
+            return go;
+        }
+
+        /// <summary>Place one object on a named layer, deliberately, so the later sweep leaves it alone.</summary>
+        static void Stamp(GameObject go, string layerName)
+        {
+            int layer = LayerMask.NameToLayer(layerName);
+            if (go != null && layer >= 0) go.layer = layer;
         }
 
         static Renderer Quad(string name, Transform parent, Vector3 localPos, Vector3 localScale, Material mat)
