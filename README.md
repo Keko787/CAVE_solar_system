@@ -103,14 +103,20 @@ These are known and deliberate, not oversights:
    `Gun_MiddleVR.prefab`, both dropped with the shooting-gallery code. They appear as missing
    objects on first open and should be deleted in-editor. The rest of the scene (CAVE_Room,
    MVRManager, MVR_URP) is intact and is the base to build the football scene from.
-2. **The football scene does not exist yet.** M2 builds it.
+2. **The CAVE football scene does not exist yet.** M2 built `Scenes/Pitch/PitchSandbox.unity`, which
+   deliberately has no MiddleVR in it — `MVRManagerScript` disables every camera whose `targetTexture`
+   is null, so there is nothing to watch the pitch through in the CAVE scene until M3's
+   render-texture cameras exist. The CAVE scene itself is M3.
 3. **Side-screen orientation in `MVR.vrx` is unresolved.** `1.11125 − 2.3876/2 = −0.08255`
    exactly, and the declared Z-rotation cannot produce a side wall. Run a labelled test card on
    all four surfaces before M3 — no desk test catches this, because panels are placed from
    `CaveRegionMap.asset` and never from the `.vrx`.
-4. **`Assets/Settings/Project Configuration/Performance URP Config.asset`** still has
-   `m_ShadowDistance: 2.5` and a 4096 main-light shadowmap, tuned for a 3.5 m room. M2 turns
-   main-light shadows off entirely and uses blob shadows.
+4. **Main-light shadows are off** in `Assets/Settings/Project Configuration/Performance URP Config.asset`,
+   as of M2. The shadow distance was 2.5 m — tuned for a 3.5 m room — while the pitch cameras stand
+   15–45 m from their subjects, so they received zero shadowed pixels while URP still rasterised a
+   4096 map on each of twelve renders a frame. Markers use blob shadows instead. The 4096 value is
+   left in place so re-enabling shadows restores the previous behaviour exactly. **This asset is
+   shared with the CAVE room, which therefore also has no cast shadows.**
 5. **`CaveRegionMap.asset` holds only the four base regions.** The `Football*` regions land in
    M3, after the hardware check in item 3.
 
