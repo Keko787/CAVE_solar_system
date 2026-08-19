@@ -456,7 +456,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | **M3** ✅ | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | **Done** — 303/303 green; all four surfaces rendered and inspected. Side-wall regions still unverified against hardware |
 | **M3.5** ✅ | **One life-size player, real geometry, correct stereo, standing in the room** | **Done, and switched off.** It answered the go/no-go; the figure itself was a placeholder, not content. Getting there took four defects no test in the suite could see — see *M2–M3.5 as built* |
 | **M4** ⏳ | Overlays — LOS, first-down line, route trails, focus rings, per-wall dim/ghost, stadium bowl. Side walls solved for life-size framing | **Built, not signed off** — 334/334 green, all four surfaces captured and inspected; `Players` is out of both side masks now that the dressing renderers exist. Held open by the side-screen test card on hardware |
-| **M5** | Stat panels, coplanar with the video, toggleable | Values match M1's expected box score |
+| **M5** ⏳ | Stat panels, coplanar with the video, toggleable | **Built and checked** — 361 green, including an acceptance suite that reads the strings off the built labels and compares them to `ScriptedDrive.Expected`. Front wall and both team cards done; the result-beat/live split and any panel the wand needs are what remain |
 | **M6** | Wand — wall picking subsystem, always-on ray, head-yaw default focus, transport | Gamepad-as-Primary at the desk; wand on hardware |
 | **M6.5** | **Attract / idle** — stale-tracker fallback, docent reset, drive variants, seamless loop join | Runs unattended for an hour without degrading |
 | **M7** | Polish — field lighting, region calibration on hardware, perf pass, pacing | Runs at target frame rate in the CAVE |
@@ -767,6 +767,56 @@ somebody that wall has deliberately ghosted says the opposite of what the ghosti
 wall cameras before it can draw any of them, since the trails are per team while the cameras choose
 per wall, and the floor draws both.
 
+### M5 — the readouts
+
+**The stats are drawn into the picture, not in front of it.** §3.4 wants them at zero disparity, coplanar
+with the video, and the obvious build — a canvas in the room parked at the wall plane — makes coplanarity a
+number somebody has to keep correct and buys z-fighting with the panel quad as well. Each readout is instead
+a child of its own pitch camera, drawn by that camera into that surface's render texture: the same pixels as
+the picture, so there is no second plane to misalign and no way for a later edit to introduce one. It costs
+no extra render loop.
+
+That needed exactly one new layer. The team walls already have `PitchRightWall` and `PitchLeftWall` for
+carrying content nobody else sees, but every layer in `BroadcastMask` is shared with the floor — and a
+readout three metres in front of the broadcast camera falls inside the floor's 48.9 m ortho box, where it
+draws as text lying across the middle of the field. Hence `PitchHud`, front wall only.
+
+| Surface | Central | Peripheral |
+| --- | --- | --- |
+| **Front** | down & distance (largest), ball-on, clock | score with a possession mark, quarter |
+| **Team walls** | lower third: `#85 BOONE RASMUSSEN` / `TE · 6-5 · 252 lb` / stat line / assignment | one live telemetry line at the top |
+
+**The builder declares fractions; the HUD applies them.** Position and size both come from the camera's
+frustum, and `TeamIsoPitchCamera` solves its own field of view in `Awake` from the framing scale — so
+anything measured at build time is measured against a frustum that no longer exists by the time anyone
+looks. Formatting lives in `StatLines`, in the sim assembly: "position-appropriate stats" is a decision — a
+quarterback's line is completions and rating, a receiver's is catches and a long — and decisions belong
+where a test can reach them without a camera.
+
+Three defects, each invisible as one:
+
+- **Score and quarter were simply absent from the front wall.** TextMeshPro aligns inside its
+  `RectTransform` and a fresh one is 20 units wide, so at wall font sizes `Left` and `Right` alignment put
+  them half a rect off the side of the frame. The labels existed, held the right strings and reported
+  sensible positions. The three centred labels were unaffected, which is why it showed up as two missing
+  items rather than as a layout that looked wrong. A degenerate rect makes the anchor the alignment edge.
+- **The route label sat exactly where M4 floats the jersey numbers** — and lifts them further to separate
+  them by depth — so `BULL RUSH` landed on top of `94`. The top strip belongs to the numbers; the route
+  reads perfectly well as the card's last line.
+- **The scoreboard was wired to the wrong source**, and this is the one worth keeping. It read
+  `GameSituation`, which is the state *at the snap*, so it lagged a play permanently: the drive ends on a
+  62-yard touchdown and the wall would have read `BAY 10` while the receiver stood in the end zone, and
+  would never have reached 16 at all. **Mid-drive the two sources agree exactly**, so every capture looked
+  right. It reads the box score now, which updates in `PostPlay` — when a real scoreboard changes.
+
+**That last one is what the acceptance suite is for.** M1 already asserts the ledger produces 2-of-3 for 76
+yards and a touchdown; M5 asserts a viewer *reads* those numbers, which is a different claim. Everything
+between the ledger and the label is somewhere a value can survive intact and arrive wrong: the wrong stat
+chosen for a position, a label bound to the neighbouring field, a rounding, a card filled for the wrong
+player. Each leaves the box score perfect and the wall wrong, and none of them look like a defect. So
+`StatPanelAcceptanceTests` plays the drive out, reads the strings back off the built labels, and compares
+them against the answer authored beside the drive.
+
 ### Next
 
 1. ~~Run the EditMode suite~~ — **334/334 green** in 2022.3.9f1, up from 309. One failure found and
@@ -777,6 +827,8 @@ per wall, and the floor draws both.
    depth separation, per-wall focus rings, the stadium bowl and route trails are all in.
 4. **Side-screen test card on the CAVE** (§3.1) — the one remaining M4 gate, and still the only thing
    at the desk that cannot be substituted for. Twenty minutes on hardware.
+4b. **M5's readouts are built and checked** (§8, above). What is left of the milestone is the result-beat
+   versus live split — the cards currently draw both at once — and whatever the wand needs a panel for.
 5. ~~Re-measure the frame budget~~ — **9.02 ms of 16.67, 54% used**, on all twelve loops with the bowl,
    six renderers per player and four line renderers in place (§4.4). `FrameBudgetProbe` is in the repo,
    so every milestone from here can be compared against this one rather than against arithmetic.
