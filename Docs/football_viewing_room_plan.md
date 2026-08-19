@@ -675,6 +675,10 @@ component, its builder menu item and its six tests stay — they are the groundw
 known life-size reference standing in the room is genuinely useful when checking the side walls.
 Rebuilding the CAVE scene drops the eight objects it left behind.
 
-One open question remains, and it is an M4 input: **`m_FramingScale = 1.0`** is true life-size, so a
-1.88 m player fills ~85% of the 2.2225 m wall. That is correct and very tight. 2.5–3 trades the
-life-size claim for context.
+**Framing settled at 2.5.** Built at true life-size first, because that is the claim the side walls
+exist to make, and seen on the wall it delivers exactly what it promises and is still the wrong
+default: one torso fills the surface, no field behind it, the numbers above the frame, and the
+per-wall dressing invisible because no second player is ever in shot. A wall that cannot show a
+receiver and the man covering him is not showing a play. At 2.5 the rendered height is
+`1.88 / 2.5 = 0.75 m` — the arithmetic is `subjectHeight / framingScale` and does not depend on
+distance — which is unmistakably a person, and buys a five-player group.

@@ -195,5 +195,27 @@ namespace Stadium3D.Football.Tests
 
             Assert.That((float)half.x / half.y, Is.EqualTo((float)full.x / full.y).Within(0.01f));
         }
+
+        /// <summary>
+        /// The framing decision, guarded. This is not a restatement of the formula — it is a floor under a
+        /// choice that is one Inspector drag away from being undone, and whose failure mode is a wall full
+        /// of markers that no longer justifies calling anything life-size.
+        /// </summary>
+        [Test]
+        public void TheShippedFramingScale_StillPutsARecognisablePersonOnTheWall()
+        {
+            const float distance = 16f;
+
+            float fov = WallFraming.LifeSizeVerticalFov(
+                distance, framingScale: TeamIsoPitchCamera.DefaultFramingScale);
+            float rendered = WallFraming.RenderedHeightOnWall(distance, fov);
+
+            Assert.That(rendered,
+                Is.EqualTo(WallFraming.PlayerHeightMeters / TeamIsoPitchCamera.DefaultFramingScale).Within(1e-3f),
+                "rendered height is subjectHeight / framingScale, and does not depend on distance");
+
+            Assert.That(rendered, Is.GreaterThan(0.6f),
+                "below about two thirds of a metre a body on the side wall stops reading as a person");
+        }
     }
 }

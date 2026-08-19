@@ -31,11 +31,28 @@ namespace Stadium3D.Pitch
 
         [SerializeField] float m_Height = 3.4f;
 
+        /// <summary>
+        /// How many wall-heights of world the side walls frame at the subject. <b>Not 1.</b>
+        /// </summary>
+        /// <remarks>
+        /// A scale of 1 is true life-size and it was built that way first, because that is the claim the
+        /// side walls exist to make. Seen on the wall it delivers exactly what it promises and is still the
+        /// wrong default: one torso fills the surface, there is no field behind it, the jersey numbers sit
+        /// above the frame, and the per-wall dressing is invisible because no second player is ever in shot.
+        /// A wall that cannot show a receiver and the man covering him is not showing a play.
+        ///
+        /// <para>At 2.5 the rendered height is <c>1.88 / 2.5 = 0.75 m</c> — the arithmetic falls out as
+        /// <c>subjectHeight / framingScale</c> and does not depend on distance, so this holds wherever the
+        /// player is. Three quarters of a metre is unmistakably a person rather than a marker, and it buys
+        /// roughly a five-player group and brings the numbers into frame, which is the whole reason
+        /// <see cref="PitchLayers.Numbers"/> exists.</para>
+        /// </remarks>
+        public const float DefaultFramingScale = 2.5f;
+
         [SerializeField, Range(0.5f, 4f)]
-        [Tooltip("1 renders the focused player life-size. Raise it to show more of the play around them at " +
-            "correspondingly smaller scale — the knob to reach for if the tight shot reads claustrophobic " +
-            "in the room.")]
-        float m_FramingScale = 1f;
+        [Tooltip("Wall-heights of world framed at the subject. 1 is true life-size and too tight to read a " +
+            "play; 2.5 keeps the player at 0.75 m on the wall and shows the people around them.")]
+        float m_FramingScale = DefaultFramingScale;
 
         [SerializeField] float m_MoveSharpness = 3.2f;
         [SerializeField] float m_AimSharpness = 6f;
