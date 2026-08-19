@@ -37,9 +37,10 @@ So "left wall = a camera on team 2's sideline" is **not achievable by moving a M
 
 ---
 
-## 1. Three amendments I recommend to what you specified
+## 1. Three amendments — all accepted
 
-Each is arithmetic, not taste. All three are yours to reject.
+Each is arithmetic, not taste. All three were accepted and are now part of the spec,
+not proposals.
 
 ### 1.1 The floor cannot carry jersey identity — and it should be reoriented
 
@@ -402,7 +403,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 
 | # | Milestone | Verifiable when |
 | --- | --- | --- |
-| **M0** | Repo split — fresh directory by file copy, 3 compile fixes, `.vrx` paths repointed, assemblies renamed, new scene | Project opens clean; ~109 EditMode tests pass |
+| **M0** ✅ | Repo split — fresh directory by file copy, 3 compile fixes, `.vrx` paths repointed, assemblies renamed | **Done** — `Stadium-3D-Football`, commit `33417a3`, 297 files, 106 assertions. First Unity open still to be run |
 | **M1** | Sim core, pure C# — field math, bake pipeline, game state, drive assets, `timeScale` and beats as first-class | Tests prove the authored drive yields the exact down/distance/score sequence and the expected box score |
 | **M2** | Pitch — field from an Editor builder, 22 markers + ball, layers, blob shadows, **main-light shadows off**, stress-test the frame budget | The play runs correctly in an **MVR-free** scene (see below) |
 | **M3** | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | Four distinct undistorted views in the MiddleVR Preview Window |
@@ -448,8 +449,46 @@ One thing already handled: `ProjectSettings.asset` has `runInBackground: 1`.
 
 ---
 
-## 11. What I need from you
+## 11. Decisions taken
 
-1. **The three amendments in §1** — floor reorientation and no jersey numbers, life-size framing on the side walls, and the beat schedule with slow motion. Each departs somewhat from what you specified.
-2. **Where the new repo goes** — directory name and whether you want a GitHub remote created, or just a local repo you push yourself. The current `origin` points at `CARE-Sit-Rep-Cave.git`, so this must be set deliberately.
-3. **Namespace** — keep `Care.*` (zero churn, but "Care" is the defense-mission product name), or rename to `Stadium3D.*` as a mechanical M0 sweep the tests would verify.
+| Decision | Choice |
+| --- | --- |
+| The three amendments in §1 | **All accepted** — floor reoriented to 1:22 with no jersey identity, side walls solved for life-size framing, beat schedule with slow motion |
+| Namespace | **`Stadium3D.*`** — swept in M0; `Care.*` and `VRShootingGallery` are gone |
+| Repo | **Local only**, no remote. `C:\Users\Exx\KostageProjects\Stadium-3D-Football` |
+
+### M0 as built
+
+Fresh directory by file copy — no `git init` in place, no mutating git command in the source
+tree, so `Stadium-3D` and the git plumbing it shares with `Sit-Rep-CAVE` were never touched.
+
+| | |
+| --- | --- |
+| Commit | `33417a3` on `main`, 297 files, 2.2 MB `.git` |
+| Remotes | none |
+| LFS | 1 object (the TMP font), as predicted |
+| C# | 46 files, 106 test assertions |
+| Assemblies | `Stadium3D.Runtime`, `Stadium3D.Editor`, `Stadium3D.Tests` |
+| Namespaces | `Stadium3D.{CaveBox, Operators, Telemetry, Vr, EditorTools}` |
+
+The three compile edges were cut as specified: `FrontWallPortal`'s telemetry import (with
+`InteractionLog` kept, moved to `Stadium3D.Telemetry`), `MatchService` → `TargetBase` (`Core/`
+and `HUDController` dropped entirely), and the two `CaveRegionMap` tests that exercised
+`FeedWindowSpawner`. `Scripts/Rig/StationaryRigGuard.cs` dropped with the XRI package references
+it was the only reason for.
+
+`MVR.vrx` is now genuinely the calibration source — the `MVRManager` prefab and the boot scene
+both pointed at copies in `Desktop\visbox` and `VR-Demo`. Layers are re-cut per §4.2, with
+`PitchMiniature` reserved at 8 and `FrontWallPortal`'s reveal layer following `SimAirspace`
+there so the component stays alive and meaningful.
+
+`CaveRegionMap.asset` is trimmed to the four base surfaces; the `Football*` regions land in M3,
+after the hardware check below.
+
+### Next
+
+1. **Open the project in Unity once.** Expect two missing objects in `BootMiddleVR2.unity`
+   (`Target_Sphere`, `Gun_MiddleVR`) — delete them. Confirm the 106 EditMode assertions pass.
+2. **Run the side-screen test card on the CAVE** (§3.1). It gates M3, and nothing at the desk
+   substitutes for it.
+3. **M1** — the sim core. Pure C#, no rendering, `timeScale` and beats first-class.
