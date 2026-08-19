@@ -54,6 +54,16 @@ namespace Stadium3D.EditorTools
             BuildBall(rig.transform);
 
             PitchLayers.ApplyRecursively(rig, PitchLayers.Players);
+
+            // Re-stamp the jersey numbers after the sweep: they belong to the team walls alone, and the
+            // recursive pass above would otherwise put them back on the shared player layer.
+            int numberLayer = LayerMask.NameToLayer(PitchLayers.Numbers);
+            if (numberLayer >= 0)
+            {
+                foreach (var text in rig.GetComponentsInChildren<TextMesh>(true))
+                    text.gameObject.layer = numberLayer;
+            }
+
             EditorUtility.SetDirty(rig);
 
             Debug.Log($"[Stadium3D] Pitch rig ready: {drive.Roster.All.Count} markers, {drive.Plays.Count} plays. " +
@@ -143,14 +153,20 @@ namespace Stadium3D.EditorTools
             number.alignment = TextAlignment.Center;
             number.color = Color.white;
 
+            // The number goes on its own layer so only the team walls show it — see PitchLayers.Numbers.
+            // Applied after the marker's own layer sweep, which would otherwise fold it back in.
+            int numberLayer = LayerMask.NameToLayer(PitchLayers.Numbers);
+            if (numberLayer >= 0) numberGo.layer = numberLayer;
+
             var marker = go.AddComponent<PlayerMarker>();
             marker.Configure(body.GetComponent<Renderer>(), chevron, blob, ring, number);
             marker.ConfigureMaterials(mats.HomeNormal, mats.HomeDimmed, mats.HomeGhosted,
                                       mats.AwayNormal, mats.AwayDimmed, mats.AwayGhosted);
             marker.Bind(identity);
 
-            // Park it on its pre-snap spot so the scene looks right before anyone presses Play.
-            go.transform.position = FieldGeometry.Spot(ScriptedDrive.StartSituation.LineOfScrimmageYard, 0f);
+            // Park it on its pre-snap spot so the scene looks right before anyone presses Play. Local, like
+            // everything else the sim drives — the pitch root may be parked far from the origin.
+            go.transform.localPosition = FieldGeometry.Spot(ScriptedDrive.StartSituation.LineOfScrimmageYard, 0f);
         }
 
         static void BuildBall(Transform parent)

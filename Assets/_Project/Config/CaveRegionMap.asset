@@ -29,3 +29,19 @@ MonoBehaviour:
     Center: {x: 1.72, y: 1.4, z: 0}
     EulerAngles: {x: 0, y: 90, z: 0}
     Size: {x: 1.8, y: 1.2}
+  - Name: FootballFront
+    Center: {x: 0, y: 1.111, z: 1.1}
+    EulerAngles: {x: 0, y: 0, z: 0}
+    Size: {x: 3.5, y: 2.19}
+  - Name: FootballLeft
+    Center: {x: -1.75, y: 1.111, z: 0}
+    EulerAngles: {x: 0, y: -90, z: 0}
+    Size: {x: 2.35, y: 2.19}
+  - Name: FootballRight
+    Center: {x: 1.75, y: 1.111, z: 0}
+    EulerAngles: {x: 0, y: 90, z: 0}
+    Size: {x: 2.35, y: 2.19}
+  - Name: FootballFloor
+    Center: {x: 0, y: 0.02, z: 0}
+    EulerAngles: {x: 90, y: 0, z: 0}
+    Size: {x: 3.5, y: 2.19}

@@ -31,16 +31,19 @@ namespace Stadium3D.Pitch
 
         float m_Spin;
 
-        /// <summary>Place the ball for this frame.</summary>
+        /// <summary>
+        /// Place the ball for this frame, in the pitch root's <b>local</b> space — the sim works in field
+        /// coordinates and does not know the pitch is parked 1500 m below the room.
+        /// </summary>
         public void Apply(in BallState ball)
         {
-            transform.position = ball.Position;
+            transform.localPosition = ball.Position;
 
             if (m_GroundTick != null)
             {
                 // Sits on the turf under the ball, never on it: at the paint's Y a tick would z-fight the
                 // yard lines it is most often directly over.
-                m_GroundTick.position = new Vector3(ball.Position.x, FieldMarkings.OverlayY, ball.Position.z);
+                m_GroundTick.localPosition = new Vector3(ball.Position.x, FieldMarkings.OverlayY, ball.Position.z);
                 m_GroundTick.gameObject.SetActive(ball.Carriage != BallCarriage.Dead);
             }
 

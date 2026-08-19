@@ -40,22 +40,42 @@ namespace Stadium3D.Pitch
         public const string CaveScreen = "CaveScreen";
 
         /// <summary>
+        /// Jersey-number billboards. <b>The team walls only.</b>
+        /// </summary>
+        /// <remarks>
+        /// A layer of their own because identity has to appear on exactly one kind of surface. On the
+        /// broadcast wall, eleven numbers inside eight yards of scrimmage collapse into an unreadable pile;
+        /// on the floor at 1:22 a number is a vertical billboard seen from directly overhead, so it renders
+        /// as a white slab that obscures the very body it is labelling. Both were visible the moment the
+        /// walls were first rendered. The team walls are the one place a player is close to life-size and a
+        /// number both fits and means something.
+        /// </remarks>
+        public const string Numbers = "PitchNumbers";
+
+        /// <summary>
         /// Reserved for M8's 3D miniature — the one pitch thing the display cameras are allowed to see,
         /// because it is real geometry in the room rather than a picture of somewhere else.
         /// </summary>
         public const string Miniature = "PitchMiniature";
 
         /// <summary>Every pitch layer. What the MiddleVR display cameras must strip.</summary>
-        public static int PitchMask => Mask(Shared, Players, RightWall, LeftWall, Tactical, Stadium);
+        public static int PitchMask => Mask(Shared, Players, RightWall, LeftWall, Tactical, Stadium, Numbers);
 
         /// <summary>The broadcast camera on the front wall: the whole field, both teams, no tactical overlay.</summary>
         public static int BroadcastMask => Mask(Shared, Players, Stadium);
 
         /// <summary>The home-team isolation camera on the right wall.</summary>
-        public static int RightWallMask => Mask(Shared, RightWall, Stadium);
+        /// <remarks>
+        /// <see cref="Players"/> is included <em>as well as</em> <see cref="RightWall"/> because the per-wall
+        /// dressing — own team lit, opponents ghosted — is M4's work and nothing lives on those layers yet.
+        /// Without it a side wall renders turf and no bodies, which is what it did the first time this was
+        /// built. When M4 adds the per-player dressing renderers, drop <see cref="Players"/> from these two
+        /// masks so each wall shows its own version of a player rather than the undressed one.
+        /// </remarks>
+        public static int RightWallMask => Mask(Shared, Players, RightWall, Stadium, Numbers);
 
-        /// <summary>The away-team isolation camera on the left wall.</summary>
-        public static int LeftWallMask => Mask(Shared, LeftWall, Stadium);
+        /// <summary>The away-team isolation camera on the left wall. See <see cref="RightWallMask"/>.</summary>
+        public static int LeftWallMask => Mask(Shared, Players, LeftWall, Stadium, Numbers);
 
         /// <summary>The floor's top-down tactical camera. No stadium bowl — it would only occlude.</summary>
         public static int FloorMask => Mask(Shared, Players, Tactical);

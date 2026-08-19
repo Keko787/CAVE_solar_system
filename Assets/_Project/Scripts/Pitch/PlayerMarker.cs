@@ -99,9 +99,16 @@ namespace Stadium3D.Pitch
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// <b>Local</b> space, not world. The sim knows nothing about where the pitch has been parked — it
+        /// works entirely in field coordinates with the 50-yard line at the origin — and in the CAVE scene
+        /// the pitch root sits 1500 m below the room so the field stays outside the display cameras' far
+        /// plane. Writing a world position here would drag every body back to the room and leave the turf
+        /// behind, which is exactly what it did the first time.
+        /// </remarks>
         public void Apply(in PlayerFrame frame)
         {
-            transform.SetPositionAndRotation(frame.Position, frame.Rotation);
+            transform.SetLocalPositionAndRotation(frame.Position, frame.Rotation);
 
             // The chevron reads as a direction only while there is a direction to read. A body standing in
             // its stance with a chevron still blazing looks like it is about to move and never does.

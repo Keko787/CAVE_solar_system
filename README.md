@@ -47,6 +47,7 @@ Assets/_Project/
     Rig/           MVRManager Variant, MVR_URP Variant
   Scenes/CAVE/
     Boot/          BootMiddleVR2.unity
+    StadiumCave.unity - the CAVE scene: room, pitch at -1500, 4 cameras, 4 panels
     Pitch/         PitchSandbox.unity - the MiddleVR-free scene M2 is watched in
   Scripts/
     CaveBox/       Region map, panel placement, wand pointer/buttons, focus navigation,
@@ -60,7 +61,7 @@ Assets/_Project/
     Vr/            MiddleVRWand — the wand read every input path sits on
     Editor/        StadiumTestRunner, StadiumRoomBuilder, FrontWallGroupBuilder,
                    GamepadProbeBuilder
-  Tests/EditMode/  283 assertions across 22 files
+  Tests/EditMode/  303 assertions across 24 files
 ```
 
 Assemblies: `Stadium3D.Runtime`, `Stadium3D.Football`, `Stadium3D.Editor`, `Stadium3D.Tests`.
@@ -84,6 +85,7 @@ cannot accidentally grow a dependency on the render or input path.
 | 18 | `PitchTactical` | Routes, coverage, down markers — floor camera only |
 | 19 | `PitchStadium` | Bowl, crowd, floodlights — front + left + right |
 | 20 | `CaveScreen` | The four RT panels and their wall-pick colliders — display cameras only |
+| 21 | `PitchNumbers` | Jersey billboards — **team walls only**; a pile on the front wall, a white slab on the floor |
 
 ## Open items from the fork
 
@@ -103,10 +105,10 @@ These are known and deliberate, not oversights:
    `Gun_MiddleVR.prefab`, both dropped with the shooting-gallery code. They appear as missing
    objects on first open and should be deleted in-editor. The rest of the scene (CAVE_Room,
    MVRManager, MVR_URP) is intact and is the base to build the football scene from.
-2. **The CAVE football scene does not exist yet.** M2 built `Scenes/Pitch/PitchSandbox.unity`, which
-   deliberately has no MiddleVR in it — `MVRManagerScript` disables every camera whose `targetTexture`
-   is null, so there is nothing to watch the pitch through in the CAVE scene until M3's
-   render-texture cameras exist. The CAVE scene itself is M3.
+2. **The pitch sits at `(0, -1500, 0)` in the CAVE scene**, beyond every display camera's 1000 m far
+   plane, so it is hidden by distance as well as by `PitchIsolation`'s culling mask. Everything the sim
+   drives — markers, ball, cameras — therefore positions itself in the pitch root's **local** space.
+   Writing a world position drags bodies back to the room and leaves the field behind.
 3. **Side-screen orientation in `MVR.vrx` is unresolved.** `1.11125 − 2.3876/2 = −0.08255`
    exactly, and the declared Z-rotation cannot produce a side wall. Run a labelled test card on
    all four surfaces before M3 — no desk test catches this, because panels are placed from
