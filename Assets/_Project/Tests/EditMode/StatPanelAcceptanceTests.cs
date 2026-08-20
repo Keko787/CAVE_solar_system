@@ -206,6 +206,86 @@ namespace Stadium3D.Football.Tests
                 "and the mark comes immediately before the team that has the ball, not the other one");
         }
 
+        static float AlphaOf(StatHud hud, string label)
+        {
+            foreach (var element in hud.Elements)
+                if (element.Label != null && element.Label.name == label) return element.Label.alpha;
+
+            Assert.Fail($"the readout has no label called \"{label}\"");
+            return -1f;
+        }
+
+        /// <summary>
+        /// §8's two beats: telemetry while the ball is live, the card at the result.
+        /// </summary>
+        /// <remarks>
+        /// Driven through the real sim rather than by calling <see cref="WallBeat"/> directly, because the
+        /// claim is about the wall and not about the arithmetic — the arithmetic has its own tests. What
+        /// could break here is the wiring: a label put in the wrong group shows the card's name over a
+        /// running play, and looks like a design decision rather than a bug.
+        /// </remarks>
+        [Test]
+        public void TheWallShowsTelemetryWhileTheBallIsLiveAndTheCardAtTheResult()
+        {
+            var wall = Camera<TeamIsoPitchCamera>("HomeIsoCamera");
+            StatPanelBuilder.Build(null, wall, null);
+
+            var hud = wall.GetComponentInChildren<TeamWallStatHud>(true);
+            int vance = PlayerIdentity.PlayerKey(TeamSide.Home, E.PasserNumber);
+
+            // Mid-play.
+            m_Sim.Director.SeekToPlay(E.Plays - 1, 2.0f);
+            m_Sim.Tick(0.0);
+            Assert.That(m_Sim.Director.Phase, Is.EqualTo(PlayPhase.Live), "the seek lands inside the play");
+
+            hud.Apply(m_Sim, vance);
+
+            Assert.That(AlphaOf(hud, "Live"), Is.EqualTo(1f).Within(0.01f), "the telemetry is up");
+            Assert.That(AlphaOf(hud, "Name"), Is.EqualTo(0f).Within(0.01f),
+                "and the card is out of the way of the play");
+
+            // Past the whistle and clear of the crossfade.
+            for (int i = 0; i < 600 && m_Sim.Director.Phase == PlayPhase.Live; i++) m_Sim.Tick(1.0 / 60.0);
+            for (int i = 0; i < 60; i++) m_Sim.Tick(1.0 / 60.0);
+
+            hud.Apply(m_Sim, vance);
+
+            Assert.That(AlphaOf(hud, "Name"), Is.EqualTo(1f).Within(0.01f), "the card is up at the result");
+            Assert.That(AlphaOf(hud, "Stats"), Is.EqualTo(1f).Within(0.01f));
+            Assert.That(AlphaOf(hud, "Live"), Is.EqualTo(0f).Within(0.01f),
+                "and the live numbers are gone rather than frozen on the wall");
+        }
+
+        /// <summary>
+        /// The result beat is worth the name: the stat line has the play you just watched in it.
+        /// </summary>
+        [Test]
+        public void TheCardAtTheResultIncludesThePlayThatHasJustFinished()
+        {
+            var wall = Camera<TeamIsoPitchCamera>("HomeIsoCamera");
+            StatPanelBuilder.Build(null, wall, null);
+
+            var hud = wall.GetComponentInChildren<TeamWallStatHud>(true);
+            int vance = PlayerIdentity.PlayerKey(TeamSide.Home, E.PasserNumber);
+
+            m_Sim.Director.SeekToPlay(E.Plays - 1, 0f);
+            m_Sim.Tick(0.0);
+            for (int i = 0; i < 600 && m_Sim.Director.Phase == PlayPhase.Live; i++) m_Sim.Tick(1.0 / 60.0);
+
+            Assert.That(m_Sim.Director.Phase, Is.EqualTo(PlayPhase.PostPlay));
+
+            // Past the crossfade, because the card is deliberately not formatted while it is invisible —
+            // during a play the live line changes every frame and the card does not, so building five
+            // strings a frame for something at zero alpha is work nobody sees. PostPlay runs for 3.5 s,
+            // so half a second in is still comfortably the result beat.
+            for (int i = 0; i < 30; i++) m_Sim.Tick(1.0 / 60.0);
+            hud.Apply(m_Sim, vance);
+
+            Assert.That(m_Sim.Director.Phase, Is.EqualTo(PlayPhase.PostPlay), "still at the result");
+            Assert.That(TextOf(hud, "Stats"), Does.Contain($"{E.PassingTouchdowns} TD"),
+                "the ledger folds the touchdown in at the whistle, which is when the card comes up");
+        }
+
         /// <summary>
         /// The common case: most of the field has done nothing, and their cards should say so quietly.
         /// </summary>

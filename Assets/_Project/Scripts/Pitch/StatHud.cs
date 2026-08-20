@@ -20,11 +20,14 @@ namespace Stadium3D.Pitch
     /// of the broadcast camera falls inside the floor camera's 48.9 m ortho box and appears as text lying
     /// across the field.</para>
     ///
-    /// <para><b>The layout is applied here, not baked by the builder.</b> Position and size both come from
-    /// the camera's frustum, and <see cref="TeamIsoPitchCamera"/> solves its own field of view in
-    /// <c>Awake</c> from the framing scale — so anything measured at build time is measured against a
-    /// frustum that no longer exists by the time anyone looks. The builder declares fractions; the frustum
-    /// is consulted once, on the camera that actually ends up rendering this.</para>
+    /// <para><b>The layout is applied here, and re-applied whenever the frustum moves under it.</b>
+    /// Position and size both come from the camera's frustum, and a team wall's field of view is not a
+    /// constant: <see cref="TeamIsoPitchCamera"/> re-solves it continuously, because holding a subject at a
+    /// fixed rendered height whatever the distance is exactly what the framing scale means. Laying out once
+    /// therefore fails the same way baking in the builder does, one level further down — the first frame is
+    /// right and every frame after it is measured against a frustum that no longer exists. It showed up as
+    /// a lower third that had shrunk to nothing and drifted into the middle of the wall. So the frustum is
+    /// remembered, and the layout redone when it changes.</para>
     ///
     /// <para><b>Nothing here computes per frame.</b> Layout runs once; per frame this sets strings, and only
     /// the ones that changed — a TextMeshPro assignment rebuilds the mesh whether or not the value differs,
@@ -49,13 +52,16 @@ namespace Stadium3D.Pitch
         [SerializeField, Tooltip("Whether the readout is drawn. The wand's Button3 toggles this.")]
         bool m_Visible = true;
 
-        [SerializeField, Tooltip("Metres in front of the camera. Cancels out on screen for a perspective " +
-            "camera; chosen only to sit clear of everything the camera is looking at.")]
-        float m_PlaneDistance = 3f;
+        [SerializeField, Min(1.05f), Tooltip("Where the readout sits, as a multiple of the camera's near " +
+            "clip plane. Cancels out on screen; it only decides what can get in front of the text.")]
+        float m_NearPlaneMargin = 1.5f;
 
         [SerializeField] List<Element> m_Elements = new List<Element>();
 
         bool m_LaidOut;
+        bool m_LaidOutOrthographic;
+        float m_LaidOutSize;
+        float m_LaidOutAspect;
 
         /// <summary>Whether this readout is currently drawn.</summary>
         public bool Visible => m_Visible;
@@ -64,6 +70,8 @@ namespace Stadium3D.Pitch
         public IReadOnlyList<Element> Elements => m_Elements;
 
         void Start() => LayOut();
+
+        // No per-frame layout call: EnsureLaidOut runs inside Apply, which is where the frame's work is.
 
         void LateUpdate()
         {
@@ -85,19 +93,32 @@ namespace Stadium3D.Pitch
             var camera = GetComponentInParent<Camera>();
             if (camera == null) return;
 
+            // Just past the near plane, not a comfortable-looking few metres out.
+            //
+            // A fixed distance is fine until the camera tilts down, and a team wall tilts down constantly —
+            // it is booming around a player. The turf at the bottom of the frame is then nearer than the
+            // readout, and the ground draws straight over the lower third. Measured, the card was at full
+            // alpha with the right text at the right place, and simply behind the field. For a perspective
+            // camera the distance cancels out on screen, so there is nothing to trade away by moving the
+            // plane as close as it can legally sit.
+            float distance = camera.nearClipPlane * Mathf.Max(1.05f, m_NearPlaneMargin);
+
             for (int i = 0; i < m_Elements.Count; i++)
             {
                 var element = m_Elements[i];
                 if (element.Label == null) continue;
 
                 element.Label.transform.localPosition =
-                    HudLayout.LocalPosition(camera, element.Viewport, m_PlaneDistance);
+                    HudLayout.LocalPosition(camera, element.Viewport, distance);
                 element.Label.transform.localRotation = Quaternion.identity;
 
-                Fit(element.Label, HudLayout.WorldHeight(camera, element.Height, m_PlaneDistance));
+                Fit(element.Label, HudLayout.WorldHeight(camera, element.Height, distance));
             }
 
             m_LaidOut = true;
+            m_LaidOutOrthographic = camera.orthographic;
+            m_LaidOutSize = camera.orthographic ? camera.orthographicSize : camera.fieldOfView;
+            m_LaidOutAspect = camera.aspect;
         }
 
         /// <summary>Declare a label's place. Called by the builder; the layout itself happens later.</summary>
@@ -133,13 +154,28 @@ namespace Stadium3D.Pitch
         }
 
         /// <summary>
-        /// Lay out if nothing has yet. For subclasses that are filled directly rather than through
-        /// <see cref="Apply(FootballSim)"/> — the capture tooling drives the team walls that way, because
-        /// their subject is chosen by a camera that has to settle first.
+        /// Lay out if nothing has yet, or if the frustum has moved since the last time.
         /// </summary>
+        /// <remarks>
+        /// The comparison is against the three things <see cref="HudLayout"/> actually reads, so a camera
+        /// that only pans or dollies costs a check and nothing else. A wall that is booming in on a
+        /// receiver re-measures, which is a handful of transform writes and one text measurement per label
+        /// — the alternative is a readout that is correct on exactly one frame.
+        /// </remarks>
         protected void EnsureLaidOut()
         {
-            if (!m_LaidOut) LayOut();
+            var camera = GetComponentInParent<Camera>();
+            if (camera == null) return;
+
+            float size = camera.orthographic ? camera.orthographicSize : camera.fieldOfView;
+
+            if (m_LaidOut &&
+                camera.orthographic == m_LaidOutOrthographic &&
+                Mathf.Approximately(size, m_LaidOutSize) &&
+                Mathf.Approximately(camera.aspect, m_LaidOutAspect))
+                return;
+
+            LayOut();
         }
 
         /// <summary>Fill this surface's own fields.</summary>

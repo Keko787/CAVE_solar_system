@@ -183,6 +183,47 @@ namespace Stadium3D.Football.Tests
                 Assert.That(element.Label.GetComponent<Renderer>().enabled, Is.True, element.Label.name);
         }
 
+        /// <summary>
+        /// The one that catches a readout that is correct on exactly one frame.
+        /// </summary>
+        /// <remarks>
+        /// A team wall's field of view is not a constant — <c>TeamIsoPitchCamera</c> re-solves it
+        /// continuously, since holding a subject at a fixed rendered height whatever the distance is what
+        /// the framing scale means. A layout measured once and cached is therefore right at the first
+        /// <c>Apply</c> and progressively wrong afterwards, which showed up in a capture as a lower third
+        /// that had shrunk to nothing and drifted into the middle of the wall.
+        /// </remarks>
+        [Test]
+        public void TheLayoutFollowsTheCameraWhenItReframes()
+        {
+            var wall = Camera<TeamIsoPitchCamera>("HomeIsoCamera");
+            StatPanelBuilder.Build(null, wall, null);
+
+            var hud = wall.GetComponentInChildren<TeamWallStatHud>(true);
+            var camera = wall.GetComponent<Camera>();
+
+            camera.orthographic = false;
+            camera.fieldOfView = 20f;
+            hud.LayOut();
+
+            var narrow = Find(hud, "Name").Label.transform.localPosition;
+            float narrowSize = Find(hud, "Name").Label.fontSize;
+
+            camera.fieldOfView = 60f;
+            hud.Apply(m_SimOrNull(), 0);   // goes through EnsureLaidOut
+
+            var wide = Find(hud, "Name").Label.transform.localPosition;
+            float wideSize = Find(hud, "Name").Label.fontSize;
+
+            Assert.That(Mathf.Abs(wide.y), Is.GreaterThan(Mathf.Abs(narrow.y) * 1.5f),
+                "a wider frame puts the same fraction further from the centre");
+            Assert.That(wideSize, Is.GreaterThan(narrowSize * 1.5f),
+                "and makes the same fraction of the frame more metres tall");
+        }
+
+        static Stadium3D.Football.FootballSim m_SimOrNull() =>
+            new Stadium3D.Football.FootballSim(Stadium3D.Football.ScriptedDrive.Build());
+
         [Test]
         public void ATeamWallsLabelsAreStampedAllTheWayDown()
         {

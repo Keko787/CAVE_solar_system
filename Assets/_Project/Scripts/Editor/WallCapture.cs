@@ -51,15 +51,30 @@ namespace Stadium3D.EditorTools
             Shoot(sim, markers, ball, cameras, playIndex: 5, time: 3.4f, outDir, "deep-ball");
             Shoot(sim, markers, ball, cameras, playIndex: 0, time: 0.0f, outDir, "presnap");
 
+            // The result beat, which is a different picture rather than the same one a moment later: the
+            // team walls swap their live telemetry for the player's card, and the card is the only place
+            // the touchdown that has just been scored appears. A capture set with no PostPlay frame in it
+            // would never show half of what §8 asks those walls for.
+            Shoot(sim, markers, ball, cameras, playIndex: 5, time: 3.4f, outDir, "result", resultBeat: true);
+
             Debug.Log($"[Stadium3D] Wrote wall captures to {outDir}");
             EditorApplication.Exit(0);
         }
 
         static void Shoot(FootballSim sim, PlayerMarker[] markers, BallMarker ball,
-                          PitchCameraBase[] cameras, int playIndex, float time, string outDir, string label)
+                          PitchCameraBase[] cameras, int playIndex, float time, string outDir, string label,
+                          bool resultBeat = false)
         {
             sim.Director.SeekToPlay(playIndex, time);
             sim.Tick(0.0);
+
+            if (resultBeat)
+            {
+                // Out to the whistle, then clear of the crossfade, so the card is fully up rather than
+                // caught halfway through arriving.
+                for (int i = 0; i < 1200 && sim.Director.Phase == PlayPhase.Live; i++) sim.Tick(1.0 / 60.0);
+                for (int i = 0; i < 45; i++) sim.Tick(1.0 / 60.0);
+            }
 
             var frames = sim.Frames;
             for (int i = 0; i < frames.Count; i++)
@@ -101,6 +116,18 @@ namespace Stadium3D.EditorTools
                     card.Apply(sim, card.Side == TeamSide.Home ? homeFocus : awayFocus);
                 else
                     hud.Apply(sim);
+
+                // What the readout actually holds, in numbers. Reading a wall of stylised flat colour and
+                // deciding whether a label is faint, mispositioned or simply absent is exactly the judgement
+                // this project keeps getting wrong; the alpha and the font size are not a judgement.
+                foreach (var element in hud.Elements)
+                {
+                    if (element.Label == null) continue;
+                    Debug.Log($"[Stadium3D] {label}/{hud.name}@{hud.transform.parent.name}: " +
+                              $"{element.Label.name} a={element.Label.alpha:0.00} " +
+                              $"size={element.Label.fontSize:0.000} pos={element.Label.transform.localPosition} " +
+                              $"\"{element.Label.text}\"");
+                }
             }
 
             foreach (var cam in cameras)
