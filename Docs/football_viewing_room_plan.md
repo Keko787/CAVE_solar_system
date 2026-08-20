@@ -456,7 +456,7 @@ Team comparison (total yards, pass/rush split, first downs, 3rd-down conversions
 | **M3** ✅ | Four cameras → four correct-aspect panels; `PitchIsolation`; floor at 1:22 two-axis ortho | **Done** — 303/303 green; all four surfaces rendered and inspected. Side-wall regions still unverified against hardware |
 | **M3.5** ✅ | **One life-size player, real geometry, correct stereo, standing in the room** | **Done, and switched off.** It answered the go/no-go; the figure itself was a placeholder, not content. Getting there took four defects no test in the suite could see — see *M2–M3.5 as built* |
 | **M4** ⏳ | Overlays — LOS, first-down line, route trails, focus rings, per-wall dim/ghost, stadium bowl. Side walls solved for life-size framing | **Built, not signed off** — 334/334 green, all four surfaces captured and inspected; `Players` is out of both side masks now that the dressing renderers exist. Held open by the side-screen test card on hardware |
-| **M5** ⏳ | Stat panels, coplanar with the video, toggleable | **Built and checked** — 361 green, including an acceptance suite that reads the strings off the built labels and compares them to `ScriptedDrive.Expected`. Front wall and both team cards done; the result-beat/live split and any panel the wand needs are what remain |
+| **M5** ⏳ | Stat panels, coplanar with the video, toggleable | **Built and checked** — 370 green, including an acceptance suite that reads the strings off the built labels and compares them to `ScriptedDrive.Expected`. Front wall, both team cards, and §8's result-beat/live split. Only whatever the wand needs a panel for remains |
 | **M6** | Wand — wall picking subsystem, always-on ray, head-yaw default focus, transport | Gamepad-as-Primary at the desk; wand on hardware |
 | **M6.5** | **Attract / idle** — stale-tracker fallback, docent reset, drive variants, seamless loop join | Runs unattended for an hour without degrading |
 | **M7** | Polish — field lighting, region calibration on hardware, perf pass, pacing | Runs at target frame rate in the CAVE |
@@ -817,6 +817,33 @@ player. Each leaves the box score perfect and the wall wrong, and none of them l
 `StatPanelAcceptanceTests` plays the drive out, reads the strings back off the built labels, and compares
 them against the answer authored beside the drive.
 
+**One readout at a time.** §8 asks the same surface for two different things, and the first build drew both
+at once — which made the busiest moment on the wall the most cluttered and left the quiet moment carrying
+live numbers that had all stopped changing. `WallBeat` returns a *weight* rather than a switch, so the
+change is a crossfade, and it is **a pure function of transport state** rather than a timer: everything else
+here is exactly reproducible under seek, loop and slow motion because nothing integrates per frame, and a
+remembered fade would have been the first thing that is not. Scrubbing into the middle of a play now arrives
+fully live, with nothing left over from a transition that never happened. The clock differs by phase — the
+director advances `PlayTime` while the ball is live and `PhaseTime` between plays — so both are passed in
+and the right one chosen once; both sides agree at every boundary, so nothing jumps at a phase change. Only
+the visible beat is formatted, which during a play is the difference between building one string a frame and
+five.
+
+Two more defects, both found by **dumping alpha, size and position out of the capture rather than reading
+pixels** — which is the only technique that has reliably worked on this project:
+
+- **The layout was measured once and cached**, and a team wall's field of view is not a constant:
+  `TeamIsoPitchCamera` re-solves it continuously, because holding a subject at a fixed rendered height
+  whatever the distance is precisely what the framing scale means. The first frame was right and every frame
+  after it was laid out against a frustum that no longer existed — the same mistake as baking in the
+  builder, one level further down. It showed as a lower third that had shrunk to nothing and drifted into
+  the middle of the wall.
+- **Then the card was at full alpha, with the right text, in the right place, and behind the field.** The
+  readout sat on a fixed plane three metres out, and a wall booming around a player tilts down — so the turf
+  at the bottom of the frame was nearer than the text. It sits just past the near clip plane now. For a
+  perspective camera the distance cancels out on screen, so there was never anything to trade away by moving
+  it as close as it can legally go.
+
 ### Next
 
 1. ~~Run the EditMode suite~~ — **334/334 green** in 2022.3.9f1, up from 309. One failure found and
@@ -827,8 +854,8 @@ them against the answer authored beside the drive.
    depth separation, per-wall focus rings, the stadium bowl and route trails are all in.
 4. **Side-screen test card on the CAVE** (§3.1) — the one remaining M4 gate, and still the only thing
    at the desk that cannot be substituted for. Twenty minutes on hardware.
-4b. **M5's readouts are built and checked** (§8, above). What is left of the milestone is the result-beat
-   versus live split — the cards currently draw both at once — and whatever the wand needs a panel for.
+4b. ~~M5's readouts~~ — built, checked against the authored box score, and split into §8's two beats
+   (above). What is left of the milestone is whatever the wand turns out to need a panel for.
 5. ~~Re-measure the frame budget~~ — **9.02 ms of 16.67, 54% used**, on all twelve loops with the bowl,
    six renderers per player and four line renderers in place (§4.4). `FrameBudgetProbe` is in the repo,
    so every milestone from here can be compared against this one rather than against arithmetic.
