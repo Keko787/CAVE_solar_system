@@ -56,6 +56,17 @@ namespace Stadium3D.EditorTools
         /// </remarks>
         static readonly bool IncludeRoomFigure = false;
 
+        /// <summary>
+        /// Batch entry point, so the committed scene can be brought up to date without opening the editor.
+        /// <c>-executeMethod Stadium3D.EditorTools.StadiumCaveBuilder.BuildBatch</c>
+        /// </summary>
+        public static void BuildBatch()
+        {
+            BuildScene();
+            Debug.Log($"[Stadium3D] Rebuilt and saved {ScenePath}.");
+            EditorApplication.Exit(0);
+        }
+
         [MenuItem("Stadium3D/Build/CAVE Football Scene", priority = 20)]
         public static void BuildScene()
         {
