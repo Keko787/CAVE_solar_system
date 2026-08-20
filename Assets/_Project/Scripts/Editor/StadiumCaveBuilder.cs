@@ -260,16 +260,19 @@ namespace Stadium3D.EditorTools
             var root = new GameObject("WallPanels");
             if (regionRoot != null) root.transform.SetParent(regionRoot, false);
 
-            Panel(root.transform, map, regionRoot, "FootballFront", rig.Front, new Vector2(3.50f, 2.19f));
-            Panel(root.transform, map, regionRoot, "FootballRight", rig.Right, new Vector2(2.35f, 2.19f));
-            Panel(root.transform, map, regionRoot, "FootballLeft",  rig.Left,  new Vector2(2.35f, 2.19f));
-            Panel(root.transform, map, regionRoot, "FootballFloor", rig.Floor, new Vector2(3.50f, 2.19f));
+            var wide = new Vector2(WallFraming.WideWallWidthMeters, WallFraming.WallHeightMeters);
+            var side = new Vector2(WallFraming.SideWallWidthMeters, WallFraming.WallHeightMeters);
+
+            Panel(root.transform, map, regionRoot, "FootballFront", rig.Front, new Vector2(3.50f, 2.19f), wide);
+            Panel(root.transform, map, regionRoot, "FootballRight", rig.Right, new Vector2(2.35f, 2.19f), side);
+            Panel(root.transform, map, regionRoot, "FootballLeft",  rig.Left,  new Vector2(2.35f, 2.19f), side);
+            Panel(root.transform, map, regionRoot, "FootballFloor", rig.Floor, new Vector2(3.50f, 2.19f), wide);
 
             PitchLayers.ApplyRecursively(root, PitchLayers.CaveScreen);
         }
 
         static void Panel(Transform parent, CaveRegionMap map, Transform regionRoot,
-                          string regionName, PitchCameraBase source, Vector2 surface)
+                          string regionName, PitchCameraBase source, Vector2 surface, Vector2 wall)
         {
             if (!RegionPlacement.TryWorldSlot(map, regionName, regionRoot, 0, 1, out var pose))
             {
@@ -297,6 +300,8 @@ namespace Stadium3D.EditorTools
 
             var panel = go.AddComponent<WallPanel>();
             panel.Configure(source, quad.GetComponent<Renderer>(), surface);
+
+            WallBezelBuilder.Build(go.transform, wall);
         }
 
         static GameObject InstantiatePrefab(string path, string name)

@@ -57,6 +57,9 @@ namespace Stadium3D.EditorTools
             // would never show half of what §8 asks those walls for.
             Shoot(sim, markers, ball, cameras, playIndex: 5, time: 3.4f, outDir, "result", resultBeat: true);
 
+            ShootRoom(outDir, "room-corner", yaw: -40f);
+            ShootRoom(outDir, "room-front", yaw: 0f);
+
             Debug.Log($"[Stadium3D] Wrote wall captures to {outDir}");
             EditorApplication.Exit(0);
         }
@@ -152,6 +155,65 @@ namespace Stadium3D.EditorTools
                           $"{s.DownAndDistance()} at {s.BallOn()}, fov {cam.Camera.fieldOfView:0.0}, " +
                           $"ortho {(cam.Camera.orthographic ? cam.Camera.orthographicSize.ToString("0.0") : "-")}");
             }
+        }
+
+        /// <summary>
+        /// What somebody standing in the room sees, rather than what one surface contains.
+        /// </summary>
+        /// <remarks>
+        /// Every capture until now has been a render target — the picture a surface shows, with the room
+        /// itself out of frame. That is the right check for content and no check at all for anything
+        /// <em>between</em> surfaces, which is why four views could meet at a corner with nothing dividing
+        /// them and no image in the project would show it. This camera carries exactly the mask
+        /// <see cref="PitchIsolation"/> leaves on a display camera, so it sees the room and the panels and
+        /// none of the pitch.
+        ///
+        /// <para>It is not a substitute for MiddleVR: the real display cameras use an off-axis frustum
+        /// solved from the screen corners, so this gets the geometry and the seams right and the projection
+        /// only approximately. Corners either have a border between them or they do not, and that is what
+        /// this is for.</para>
+        /// </remarks>
+        static void ShootRoom(string outDir, string label, float yaw)
+        {
+            // The panels bind their render targets in LateUpdate, which does not tick in edit mode — so
+            // without this every wall shows the "no signal" slate and the picture the border is meant to
+            // separate is not there to look at.
+            foreach (var panel in Object.FindObjectsOfType<WallPanel>(true))
+            {
+                var view = panel.Source != null ? panel.Source.View : null;
+                if (view != null) panel.Bind(view);
+            }
+
+            var go = new GameObject("RoomCapture") { hideFlags = HideFlags.HideAndDontSave };
+            go.transform.position = new Vector3(0f, 1.2f, 0f);
+            go.transform.rotation = Quaternion.Euler(8f, yaw, 0f);
+
+            var cam = go.AddComponent<Camera>();
+            cam.enabled = false;
+            cam.cullingMask = ~PitchLayers.PitchMask;
+            cam.nearClipPlane = 0.05f;
+            cam.farClipPlane = 100f;
+            cam.fieldOfView = 72f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
+
+            var rt = new RenderTexture(2560, 1600, 24, RenderTextureFormat.ARGB32)
+            {
+                antiAliasing = Mathf.Max(1, QualitySettings.antiAliasing),
+            };
+            rt.Create();
+
+            cam.targetTexture = rt;
+            cam.Render();
+            Save(rt, Path.Combine(outDir, label + ".png"));
+
+            int mask = cam.cullingMask;
+
+            cam.targetTexture = null;
+            rt.Release();
+            Object.DestroyImmediate(go);
+
+            Debug.Log($"[Stadium3D] {label}: room at yaw {yaw:0}, mask 0x{mask:X8}");
         }
 
         static void Save(RenderTexture rt, string path)
